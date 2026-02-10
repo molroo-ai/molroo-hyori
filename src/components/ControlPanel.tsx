@@ -24,8 +24,8 @@ function Slider({ label, min, max, step, defaultValue, onChange }: SliderConfig)
   }
 
   return (
-    <div style={{ padding: '2px 12px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#999' }}>
+    <div className="px-3 py-0.5">
+      <div className="flex justify-between text-[11px] text-[#999]">
         <span>{label}</span>
         <span>{value.toFixed(1)}</span>
       </div>
@@ -36,7 +36,7 @@ function Slider({ label, min, max, step, defaultValue, onChange }: SliderConfig)
         step={step}
         value={value}
         onChange={handleChange}
-        style={{ width: '100%', accentColor: '#4a9' }}
+        className="w-full accent-accent"
       />
     </div>
   )
@@ -44,8 +44,10 @@ function Slider({ label, min, max, step, defaultValue, onChange }: SliderConfig)
 
 export function ControlPanel({ controller }: ControlPanelProps) {
   return (
-    <div style={{ padding: '8px 0' }}>
-      <h3 style={headingStyle}>Controls</h3>
+    <div className="py-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 px-3">
+        Controls
+      </h3>
 
       <Slider
         label="Head X"
@@ -79,14 +81,4 @@ export function ControlPanel({ controller }: ControlPanelProps) {
       />
     </div>
   )
-}
-
-const headingStyle: React.CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color: '#888',
-  margin: '0 0 8px 0',
-  padding: '0 12px',
 }

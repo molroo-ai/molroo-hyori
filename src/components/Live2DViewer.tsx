@@ -24,7 +24,7 @@ export function Live2DViewer({ character, onReady, onActiveMotionChange }: Live2
   }, [controller.activeMotion])
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', zIndex: 5 }}>
       <canvas
         ref={canvasRef}
         className="w-full h-full block"

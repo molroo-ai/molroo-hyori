@@ -1,0 +1,236 @@
+/* ── Character speech bubble (left of center, near character head) ── */
+.speech-bubble {
+  position: absolute;
+  top: 6%;
+  right: calc(50% + 20px);
+  z-index: 20;
+  max-width: 360px;
+  padding: 14px 22px;
+  font-size: 17px;
+  font-weight: 600;
+  color: #1a1a1a;
+  background: #fff;
+  border: 2.5px solid #222;
+  border-radius: 26px;
+  box-shadow: 3px 3px 0 #222;
+  text-align: center;
+  line-height: 1.4;
+  pointer-events: none;
+  animation: speechPop 3.5s ease-out forwards;
+}
+
+/* Tail pointing down-right toward character */
+.speech-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -16px;
+  right: 24px;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 18px solid #fff;
+  filter: drop-shadow(1px 2px 0 #222);
+}
+
+.speech-bubble::before {
+  content: '';
+  position: absolute;
+  bottom: -20px;
+  right: 22px;
+  width: 0;
+  height: 0;
+  border-left: 12px solid transparent;
+  border-right: 12px solid transparent;
+  border-top: 22px solid #222;
+}
+
+@keyframes speechPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  6% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  12% {
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-6px);
+  }
+}
+
+/* ── Messages layer (behind character, z-index < 5) ── */
+.chat-messages-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.chat-messages {
+  width: 100%;
+  min-width: 480px;
+  max-width: 640px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 20px 90px;
+  pointer-events: auto;
+}
+
+@media (max-width: 600px) {
+  .chat-messages {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+/* ── Input layer (above character, z-index > 5) ── */
+.chat-input-layer {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* ── User bubble (right) ── */
+.chat-bubble--user {
+  align-self: flex-end;
+  max-width: 80%;
+  padding: 10px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+  background: rgba(37, 99, 235, 0.55);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #fff;
+  border-radius: 20px 20px 6px 20px;
+  animation: bubbleIn 0.25s ease-out;
+}
+
+.chat-bubble--user:last-child {
+  background: rgba(37, 99, 235, 0.85);
+}
+
+/* ── Assistant bubble (left) ── */
+.chat-bubble--assistant {
+  align-self: flex-start;
+  max-width: 80%;
+  padding: 10px 16px;
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+  background: rgba(30, 30, 30, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: #eee;
+  border-radius: 20px 20px 20px 6px;
+  animation: bubbleIn 0.25s ease-out;
+}
+
+.chat-bubble--assistant:last-child {
+  background: rgba(30, 30, 30, 0.9);
+}
+
+@keyframes bubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Input bar ── */
+.chat-input-bar {
+  width: 100%;
+  min-width: 480px;
+  max-width: 640px;
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(30, 30, 30, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  pointer-events: auto;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  color: #eee;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.chat-input:focus {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.chat-input::placeholder {
+  color: #666;
+}
+
+.chat-send {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #2563eb;
+  border: none;
+  border-radius: 20px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.chat-send:hover {
+  background: #1d4ed8;
+}
+
+@media (max-width: 600px) {
+  .chat-input-bar {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .speech-bubble {
+    right: auto;
+    left: 16px;
+    max-width: calc(100% - 32px);
+  }
+}
+
+/* Scrollbar */
+.chat-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}

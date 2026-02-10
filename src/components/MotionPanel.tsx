@@ -16,18 +16,21 @@ export function MotionPanel({ character, controller, activeMotion }: MotionPanel
     return active?.group === group && active?.index === index
   }
 
+  const btnBase = 'px-2.5 py-1 text-xs border rounded cursor-pointer transition-all duration-150'
+  const btnDefault = 'bg-secondary border-input text-foreground hover:bg-[#252525]'
+  const btnActive = 'bg-[#2d4a5a] border-[#4a9ec9] text-white'
+
   return (
-    <div style={{ padding: '8px 0' }}>
-      <h3 style={headingStyle}>Preset Motions</h3>
-      <div style={gridStyle}>
+    <div className="py-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 px-3">
+        Preset Motions
+      </h3>
+      <div className="flex flex-wrap gap-1 px-3">
         {presetMotions.map(([key, def]) => (
           <button
             key={key}
             onClick={() => controller?.playMotion(def.group, def.index)}
-            style={{
-              ...buttonStyle,
-              ...(isActive(def.group, def.index) ? activeButtonStyle : {}),
-            }}
+            className={`${btnBase} ${isActive(def.group, def.index) ? btnActive : btnDefault}`}
             title={def.label}
           >
             {key}
@@ -35,17 +38,16 @@ export function MotionPanel({ character, controller, activeMotion }: MotionPanel
         ))}
       </div>
 
-      <h3 style={{ ...headingStyle, marginTop: '12px' }}>Raw Motion Groups</h3>
-      <div style={gridStyle}>
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 mt-3 px-3">
+        Raw Motion Groups
+      </h3>
+      <div className="flex flex-wrap gap-1 px-3">
         {Object.entries(rawGroups).map(([group, count]) => (
           Array.from({ length: count }, (_, i) => (
             <button
               key={`${group}-${i}`}
               onClick={() => controller?.playMotion(group, i)}
-              style={{
-                ...buttonStyle,
-                ...(isActive(group, i) ? activeButtonStyle : {}),
-              }}
+              className={`${btnBase} ${isActive(group, i) ? btnActive : btnDefault}`}
             >
               {group}[{i}]
             </button>
@@ -54,38 +56,4 @@ export function MotionPanel({ character, controller, activeMotion }: MotionPanel
       </div>
     </div>
   )
-}
-
-const headingStyle: React.CSSProperties = {
-  fontSize: '12px',
-  fontWeight: 600,
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  color: '#888',
-  margin: '0 0 8px 0',
-  padding: '0 12px',
-}
-
-const gridStyle: React.CSSProperties = {
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: '4px',
-  padding: '0 12px',
-}
-
-const buttonStyle: React.CSSProperties = {
-  padding: '4px 10px',
-  fontSize: '12px',
-  border: '1px solid #333',
-  borderRadius: '4px',
-  background: '#1a1a1a',
-  color: '#ccc',
-  cursor: 'pointer',
-  transition: 'all 0.15s',
-}
-
-const activeButtonStyle: React.CSSProperties = {
-  background: '#2d4a5a',
-  borderColor: '#4a9ec9',
-  color: '#fff',
 }

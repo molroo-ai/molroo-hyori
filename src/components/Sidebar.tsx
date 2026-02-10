@@ -3,7 +3,6 @@ import type { Live2DController, ActiveMotion } from '../hooks/useLive2D'
 import { ExpressionPanel } from './ExpressionPanel'
 import { MotionPanel } from './MotionPanel'
 import { ControlPanel } from './ControlPanel'
-import { ChatPanel } from './ChatPanel'
 
 interface SidebarProps {
   character: CharacterPackage
@@ -15,60 +14,25 @@ interface SidebarProps {
 
 export function Sidebar({ character, controller, activeExpression, onExpressionChange, activeMotion }: SidebarProps) {
   return (
-    <div style={containerStyle}>
-      <div style={headerStyle}>
-        <span style={{ fontWeight: 700 }}>{character.name}</span>
-        <span style={{ fontSize: '11px', color: controller?.isLoaded ? '#4a9' : '#888' }}>
+    <div className="w-[280px] min-w-[280px] bg-card border-r border-border flex flex-col h-full">
+      <div className="flex justify-between items-center px-3 py-3 border-b border-border text-sm text-foreground">
+        <span className="font-bold">{character.name}</span>
+        <span className={`text-[11px] ${controller?.isLoaded ? 'text-accent' : 'text-muted-foreground'}`}>
           {controller?.isLoaded ? 'loaded' : 'loading...'}
         </span>
       </div>
-      <div style={scrollAreaStyle}>
+      <div className="flex-1 overflow-y-auto flex flex-col">
         <ExpressionPanel
           character={character}
           controller={controller}
           activeExpression={activeExpression}
           onExpressionChange={onExpressionChange}
         />
-        <div style={dividerStyle} />
+        <div className="h-px bg-border my-1" />
         <MotionPanel character={character} controller={controller} activeMotion={activeMotion} />
-        <div style={dividerStyle} />
+        <div className="h-px bg-border my-1" />
         <ControlPanel controller={controller} />
-        <div style={dividerStyle} />
-        <ChatPanel />
       </div>
     </div>
   )
-}
-
-const containerStyle: React.CSSProperties = {
-  width: '280px',
-  minWidth: '280px',
-  background: '#111',
-  borderRight: '1px solid #222',
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100%',
-}
-
-const headerStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: '12px',
-  borderBottom: '1px solid #222',
-  fontSize: '14px',
-  color: '#eee',
-}
-
-const scrollAreaStyle: React.CSSProperties = {
-  flex: 1,
-  overflowY: 'auto',
-  display: 'flex',
-  flexDirection: 'column',
-}
-
-const dividerStyle: React.CSSProperties = {
-  height: '1px',
-  background: '#222',
-  margin: '4px 0',
 }

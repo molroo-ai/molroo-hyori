@@ -53,7 +53,8 @@ export function useLive2D(
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas || !canvas.parentElement) return
+    const container = canvas.parentElement!
 
     let disposed = false
     let app: any
@@ -71,8 +72,8 @@ export function useLive2D(
       const pixelRatio = globalThis.devicePixelRatio ?? 1
       app = new Application({
         view: canvas!,
-        width: canvas!.clientWidth,
-        height: canvas!.clientHeight,
+        width: container.clientWidth,
+        height: container.clientHeight,
         resolution: pixelRatio,
         backgroundAlpha: 0,
         antialias: true,
@@ -98,8 +99,8 @@ export function useLive2D(
       const scaleFactor = character.display?.scale ?? 2.2
 
       function setScaleAndPosition() {
-        const width = canvas!.clientWidth
-        const height = canvas!.clientHeight
+        const width = container.clientWidth
+        const height = container.clientHeight
 
         const heightScale = (height * 0.95 / initialModelHeight * scaleFactor)
         const widthScale = (width * 0.95 / initialModelWidth * scaleFactor)
@@ -289,13 +290,13 @@ export function useLive2D(
       canvas!.addEventListener('pointerdown', onPointerDown)
       canvas!.addEventListener('pointerup', onPointerUp)
 
-      // Resize observer
+      // Resize observer — watch container, not canvas (Pixi overrides canvas size)
       const resizeObserver = new ResizeObserver(() => {
         if (disposed) return
-        app.renderer.resize(canvas!.clientWidth, canvas!.clientHeight)
+        app.renderer.resize(container.clientWidth, container.clientHeight)
         setScaleAndPosition()
       })
-      resizeObserver.observe(canvas!)
+      resizeObserver.observe(container)
 
       setIsLoaded(true)
 
