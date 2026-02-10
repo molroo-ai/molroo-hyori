@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { patchEyeBallCurves, patchIdleMotions } from '../motion-patches'
+import { describe, expect, it, vi } from 'vitest'
+import { interceptStartMotion, patchEyeBallCurves, patchIdleMotions } from '../motion-patches'
 
 function makeMotion(curveIds: string[]) {
   return {
@@ -74,5 +74,74 @@ describe('patchIdleMotions', () => {
     }
 
     expect(() => patchIdleMotions(motionManager)).not.toThrow()
+  })
+})
+
+describe('interceptStartMotion', () => {
+  function createMotionManager() {
+    return {
+      groups: { idle: 'Idle' },
+      motionGroups: {
+        Idle: [makeMotion(['ParamEyeBallX'])],
+        Tap: [makeMotion(['ParamAngleX'])],
+      },
+      startMotion: vi.fn((_group: string, _index: number, _priority?: number) => {
+        return Promise.resolve()
+      }),
+    }
+  }
+
+  it('calls onNonIdleMotion for non-idle groups', () => {
+    const mm = createMotionManager()
+    const onNonIdle = vi.fn()
+
+    interceptStartMotion(mm, onNonIdle)
+    mm.startMotion('Tap', 0)
+
+    expect(onNonIdle).toHaveBeenCalledWith('Tap', 0)
+  })
+
+  it('does not call onNonIdleMotion for idle group', () => {
+    const mm = createMotionManager()
+    const onNonIdle = vi.fn()
+
+    interceptStartMotion(mm, onNonIdle)
+    mm.startMotion('Idle', 0)
+
+    expect(onNonIdle).not.toHaveBeenCalled()
+  })
+
+  it('patches idle motion curves after lazy load resolves', async () => {
+    const mm = createMotionManager()
+    const onNonIdle = vi.fn()
+
+    interceptStartMotion(mm, onNonIdle)
+    mm.startMotion('Idle', 0)
+
+    // Wait for the Promise.resolve().then() to complete
+    await new Promise(r => setTimeout(r, 0))
+
+    expect(mm.motionGroups.Idle[0]._motionData.curves[0].id).toBe('_ParamEyeBallX')
+  })
+
+  it('passes through priority parameter to original', () => {
+    const mm = createMotionManager()
+    const originalFn = mm.startMotion
+
+    interceptStartMotion(mm, vi.fn())
+    mm.startMotion('Tap', 2, 3)
+
+    expect(originalFn).toHaveBeenCalledWith('Tap', 2, 3)
+  })
+
+  it('returns the result from original startMotion', () => {
+    const mm = createMotionManager()
+    const expectedResult = Promise.resolve('motion-result')
+    mm.startMotion.mockReturnValue(expectedResult)
+
+    interceptStartMotion(mm, vi.fn())
+    const result = mm.startMotion('Tap', 0)
+
+    expect(result).toBe(expectedResult)
   })
 })
