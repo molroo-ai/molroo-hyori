@@ -1,17 +1,28 @@
 /**
  * Diagonal repeating text background — manga/showcase aesthetic.
+ * Slow infinite scroll animation for visual dynamism.
  * Pure decorative layer, no interactivity.
  */
 
-const LINES = [
-  'molroo',
-  'EMOTION ENGINE',
-  'molroo',
-  'COMING SOON',
+interface Row {
+  text: string
+  size: number
+  opacity: number
+  spacing: string
+  color: string
+  speed: number       // animation duration in seconds
+  reverse: boolean
+}
+
+const ROWS: Row[] = [
+  { text: 'molroo', size: 56, opacity: 0.07, spacing: '0.15em', color: '255,255,255', speed: 80, reverse: false },
+  { text: 'EMOTION ENGINE', size: 18, opacity: 0.08, spacing: '0.5em', color: '255,255,255', speed: 60, reverse: true },
+  { text: 'molroo', size: 40, opacity: 0.05, spacing: '0.12em', color: '255,255,255', speed: 90, reverse: false },
+  { text: 'COMING SOON', size: 22, opacity: 0.06, spacing: '0.4em', color: '233,69,96', speed: 50, reverse: true },
 ]
 
-const ROW_COUNT = 24
-const REPEAT = 12
+const TILE_COUNT = 6  // rows per pattern cycle
+const REPEAT = 20     // text repeats per row
 
 export function MangaBackground() {
   return (
@@ -25,42 +36,40 @@ export function MangaBackground() {
         zIndex: 1,
       }}
     >
+      <style>{keyframes}</style>
       <div
         style={{
           position: 'absolute',
-          top: '-50%',
-          left: '-50%',
-          width: '200%',
-          height: '200%',
+          top: '-60%',
+          left: '-60%',
+          width: '220%',
+          height: '220%',
           transform: 'rotate(-18deg)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          gap: 48,
+          gap: 36,
         }}
       >
-        {Array.from({ length: ROW_COUNT }, (_, i) => {
-          const line = LINES[i % LINES.length]
-          const isAccent = line === 'COMING SOON'
+        {Array.from({ length: TILE_COUNT * ROWS.length }, (_, i) => {
+          const row = ROWS[i % ROWS.length]
           return (
             <div
               key={i}
               style={{
                 whiteSpace: 'nowrap',
-                fontSize: isAccent ? 20 : 32,
+                fontSize: row.size,
                 fontWeight: 900,
-                fontFamily: "'Inter', 'Helvetica Neue', sans-serif",
-                color: isAccent
-                  ? 'rgba(233, 69, 96, 0.04)'
-                  : 'rgba(255, 255, 255, 0.025)',
-                letterSpacing: isAccent ? '0.3em' : '0.08em',
+                fontFamily: "'Impact', 'Arial Black', 'Helvetica Neue', sans-serif",
+                fontStyle: 'italic',
+                color: `rgba(${row.color}, ${row.opacity})`,
+                letterSpacing: row.spacing,
                 textTransform: 'uppercase',
                 userSelect: 'none',
-                // Alternate row offset for staggered look
-                paddingLeft: i % 2 === 0 ? 0 : 80,
+                animation: `manga-scroll-${row.reverse ? 'r' : 'l'} ${row.speed}s linear infinite`,
               }}
             >
-              {`${line}  \u00B7  `.repeat(REPEAT)}
+              {`${row.text}  \u00B7  `.repeat(REPEAT)}
             </div>
           )
         })}
@@ -68,3 +77,14 @@ export function MangaBackground() {
     </div>
   )
 }
+
+const keyframes = `
+@keyframes manga-scroll-l {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes manga-scroll-r {
+  from { transform: translateX(-50%); }
+  to   { transform: translateX(0); }
+}
+`
