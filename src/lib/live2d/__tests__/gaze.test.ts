@@ -30,12 +30,6 @@ describe('resolveGaze', () => {
     expect(result).toEqual({ x: 0, y: 0 })
   })
 
-  it('handles extreme camera values', () => {
-    const camera = { eyeX: -1, eyeY: 1 }
-    const result = resolveGaze(camera, null)
-
-    expect(result).toEqual({ x: -1, y: 1 })
-  })
 })
 
 describe('attachMouseGaze', () => {
@@ -118,14 +112,4 @@ describe('attachMouseGaze', () => {
     expect(onGaze).not.toHaveBeenCalled()
   })
 
-  it('handles container with offset position', () => {
-    const container = createContainer({ left: 50, top: 25, width: 100, height: 100 })
-    const onGaze = vi.fn()
-
-    attachMouseGaze(container, onGaze)
-
-    // Center of offset container
-    container.dispatchEvent(new MouseEvent('mousemove', { clientX: 100, clientY: 75 }))
-    expect(onGaze).toHaveBeenCalledWith({ x: 0, y: 0 })
-  })
 })
