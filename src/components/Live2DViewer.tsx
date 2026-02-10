@@ -37,7 +37,7 @@ export function Live2DViewer({ character, onReady, onActiveMotionChange }: Live2
         ref={jeelizCanvasRef}
         width={320}
         height={240}
-        style={{ position: 'absolute', top: -9999, left: -9999, width: 1, height: 1 }}
+        style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}
       />
       {!controller.isLoaded && (
         <div

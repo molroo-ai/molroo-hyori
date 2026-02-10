@@ -13,7 +13,7 @@ import './App.css'
 export default function App() {
   const [controller, setController] = useState<Live2DController | null>(null)
   const [activeMotion, setActiveMotion] = useState<ActiveMotion | null>(null)
-  const [devOpen, setDevOpen] = useState(true)
+  const [devOpen, setDevOpen] = useState(false)
 
   const {
     session, molrooApiKey, setMolrooApiKey,
@@ -34,7 +34,10 @@ export default function App() {
         <MangaBackground />
         <Live2DViewer
           character={hyoriCharacter}
-          onReady={setController}
+          onReady={(ctrl) => {
+            setController(ctrl)
+            ctrl.setCameraTracking(true)
+          }}
           onActiveMotionChange={setActiveMotion}
         />
         <ChatPanel
