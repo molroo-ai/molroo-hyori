@@ -7,6 +7,7 @@ import type { CameraTrackingStatus } from '../lib/face-tracking/jeeliz-adapter'
 import { createJeelizAdapter } from '../lib/face-tracking/jeeliz-adapter'
 import type { Exp3Expression } from '../lib/live2d/exp3-engine'
 import { applyExp3Expression } from '../lib/live2d/exp3-engine'
+import { attachDragPhysics } from '../lib/live2d/drag-physics'
 import { attachMouseGaze, resolveGaze } from '../lib/live2d/gaze'
 import { attachGestureHandlers } from '../lib/live2d/gestures'
 import { interceptStartMotion, patchIdleMotions } from '../lib/live2d/motion-patches'
@@ -152,6 +153,9 @@ export function useLive2D(
         setActiveMotion({ group, index })
       })
 
+      // --- Drag physics ---
+      const dragPhysics = attachDragPhysics(canvas!)
+
       // --- Gaze + idle tracking (motionManager.update hook) ---
       const idleGroupName = motionManager.groups.idle
       const originalMotionUpdate = motionManager.update.bind(motionManager)
@@ -159,6 +163,19 @@ export function useLive2D(
 
       motionManager.update = function (cm: any, now: number) {
         const result = originalMotionUpdate(cm, now)
+
+        // Apply drag-based head/body rotation (blended with motion values)
+        const drag = dragPhysics.update()
+        if (drag) {
+          const w = drag.weight
+          const mw = 1 - w
+          const ax = coreModel.getParameterValueById('ParamAngleX') ?? 0
+          const ay = coreModel.getParameterValueById('ParamAngleY') ?? 0
+          const bx = coreModel.getParameterValueById('ParamBodyAngleX') ?? 0
+          coreModel.setParameterValueById('ParamAngleX', ax * mw + drag.angleX * w)
+          coreModel.setParameterValueById('ParamAngleY', ay * mw + drag.angleY * w)
+          coreModel.setParameterValueById('ParamBodyAngleX', bx * mw + drag.bodyAngleX * w)
+        }
 
         const isIdle = !motionManager.state.currentGroup
           || motionManager.state.currentGroup === idleGroupName
@@ -244,6 +261,7 @@ export function useLive2D(
         resizeObserver.disconnect()
         cleanupGestures()
         cleanupMouse()
+        dragPhysics.cleanup()
       }
     }
 
