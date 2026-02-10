@@ -136,7 +136,7 @@ describe('interceptStartMotion', () => {
 
   it('returns the result from original startMotion', () => {
     const mm = createMotionManager()
-    const expectedResult = Promise.resolve('motion-result')
+    const expectedResult = Promise.resolve()
     mm.startMotion.mockReturnValue(expectedResult)
 
     interceptStartMotion(mm, vi.fn())

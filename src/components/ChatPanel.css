@@ -97,7 +97,7 @@
   }
 }
 
-/* ── Input layer (above character, z-index > 5) ── */
+/* ── Input layer (above character) ── */
 .chat-input-layer {
   position: absolute;
   bottom: 16px;
@@ -233,4 +233,32 @@
 .chat-messages::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 2px;
+}
+
+/* ── Loading dots ── */
+.chat-bubble--loading {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.chat-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.chat-dots span {
+  width: 6px;
+  height: 6px;
+  background: #888;
+  border-radius: 50%;
+  animation: dotBounce 1.2s infinite;
+}
+
+.chat-dots span:nth-child(2) { animation-delay: 0.2s; }
+.chat-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotBounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
 }

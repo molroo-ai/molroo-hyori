@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
+import type { SessionState } from '../hooks/useSession'
+import type { TurnResultResponse } from '../lib/api/types'
 import './ChatPanel.css'
 
 export interface ChatMessage {
@@ -8,9 +10,22 @@ export interface ChatMessage {
 
 interface ChatPanelProps {
   characterName?: string
+  session: SessionState
+  isProcessing: boolean
+  onSend: (message: string) => Promise<{
+    turnResponse: TurnResultResponse
+    displayText: string
+  } | null>
+  onTurnResponse: (res: TurnResultResponse) => void
 }
 
-export function ChatPanel({ characterName = 'Hyori' }: ChatPanelProps) {
+export function ChatPanel({
+  characterName = 'Hyori',
+  session,
+  isProcessing,
+  onSend,
+  onTurnResponse,
+}: ChatPanelProps) {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [floatingText, setFloatingText] = useState<string | null>(null)
@@ -18,21 +33,38 @@ export function ChatPanel({ characterName = 'Hyori' }: ChatPanelProps) {
   const floatingTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
   useEffect(() => {
+    if (session.status === 'idle') setMessages([])
+  }, [session.status])
+
+  useEffect(() => {
     userListRef.current?.scrollTo({ top: userListRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages])
 
-  function handleSend() {
-    if (!input.trim()) return
+  async function handleSend() {
+    if (!input.trim() || isProcessing) return
     const userMsg = input.trim()
     setMessages(prev => [...prev, { role: 'user', text: userMsg }])
     setInput('')
 
-    // Phase 2: real AI backend — for now, echo stub
-    setTimeout(() => {
-      const reply = userMsg
-      setMessages(prev => [...prev, { role: 'assistant', text: reply }])
-      showFloating(reply)
-    }, 600)
+    if (session.status !== 'active') {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        text: 'Create a session first in the Setup tab.',
+      }])
+      return
+    }
+
+    const result = await onSend(userMsg)
+    if (result) {
+      setMessages(prev => [...prev, { role: 'assistant', text: result.displayText }])
+      showFloating(result.displayText)
+      onTurnResponse(result.turnResponse)
+    } else {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        text: 'Something went wrong. Check the Setup tab for errors.',
+      }])
+    }
   }
 
   function showFloating(text: string) {
@@ -41,16 +73,18 @@ export function ChatPanel({ characterName = 'Hyori' }: ChatPanelProps) {
     floatingTimerRef.current = setTimeout(() => setFloatingText(null), 3500)
   }
 
+  const placeholder = session.status === 'active'
+    ? `Talk to ${characterName}...`
+    : 'Create a session first...'
+
   return (
     <>
-      {/* Character speech bubble */}
       {floatingText && (
         <div className="speech-bubble" key={floatingText}>
           {floatingText}
         </div>
       )}
 
-      {/* Messages — behind character */}
       <div className="chat-messages-layer">
         <div className="chat-messages" ref={userListRef}>
           {messages.map((msg, i) => (
@@ -61,10 +95,16 @@ export function ChatPanel({ characterName = 'Hyori' }: ChatPanelProps) {
               {msg.text}
             </div>
           ))}
+          {isProcessing && (
+            <div className="chat-bubble--assistant chat-bubble--loading">
+              <span className="chat-dots">
+                <span /><span /><span />
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Input bar — above character */}
       <div className="chat-input-layer">
         <div className="chat-input-bar">
           <input
@@ -72,11 +112,16 @@ export function ChatPanel({ characterName = 'Hyori' }: ChatPanelProps) {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSend()}
-            placeholder={`Talk to ${characterName}...`}
+            placeholder={placeholder}
             className="chat-input"
+            disabled={isProcessing}
           />
-          <button onClick={handleSend} className="chat-send">
-            Send
+          <button
+            onClick={handleSend}
+            className="chat-send"
+            disabled={isProcessing || !input.trim()}
+          >
+            {isProcessing ? '...' : 'Send'}
           </button>
         </div>
       </div>

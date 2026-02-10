@@ -2,6 +2,7 @@ node_modules/
 dist/
 *.local
 .DS_Store
+.env
 
 # Live2D model files — not redistributable (Live2D sample model terms)
 public/models/
