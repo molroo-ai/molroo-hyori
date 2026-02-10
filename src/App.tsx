@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { hyoriCharacter } from './characters/hyori'
 import { Live2DViewer } from './components/Live2DViewer'
+import { MangaBackground } from './components/MangaBackground'
 import { Sidebar } from './components/Sidebar'
 import { ChatPanel } from './components/ChatPanel'
 import type { Live2DController, ActiveMotion } from './hooks/useLive2D'
@@ -40,14 +41,15 @@ export default function App() {
       )}
 
       <div className="main-area">
+        <MangaBackground />
         <Live2DViewer
           character={hyoriCharacter}
           onReady={setController}
           onActiveMotionChange={setActiveMotion}
         />
         <ChatPanel characterName={hyoriCharacter.name} />
-        <div className="absolute bottom-2 right-3 text-[10px] text-[#444] pointer-events-none">
-          This content uses sample data owned and copyrighted by Live2D Inc.
+        <div className="attribution">
+          Powered by Live2D
         </div>
       </div>
     </div>

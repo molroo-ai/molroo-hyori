@@ -89,3 +89,15 @@ html, body, #root {
 ::-webkit-scrollbar-thumb:hover {
   background: #444;
 }
+
+/* ── Attribution ── */
+.attribution {
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 10px;
+  color: #444;
+  pointer-events: none;
+  user-select: none;
+  z-index: 10;
+}
