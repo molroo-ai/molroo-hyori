@@ -9,3 +9,4 @@ public/models/
 # Internal dev files — not for public repo
 CLAUDE.md
 PLAN.md
+docs/internal/

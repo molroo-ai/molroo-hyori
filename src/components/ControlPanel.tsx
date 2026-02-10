@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { CameraTrackingStatus } from '../lib/face-tracking/jeeliz-adapter'
 import type { Live2DController } from '../hooks/useLive2D'
 
 interface ControlPanelProps {
@@ -42,12 +43,66 @@ function Slider({ label, min, max, step, defaultValue, onChange }: SliderConfig)
   )
 }
 
+const STATUS_LABEL: Record<CameraTrackingStatus, string> = {
+  off: 'Off',
+  requesting: 'Requesting…',
+  active: 'Active',
+  error: 'Error',
+}
+
+const STATUS_COLOR: Record<CameraTrackingStatus, string> = {
+  off: '#666',
+  requesting: '#c90',
+  active: '#0c6',
+  error: '#c33',
+}
+
 export function ControlPanel({ controller }: ControlPanelProps) {
+  const cameraStatus = controller?.cameraTrackingStatus ?? 'off'
+  const isCameraOn = cameraStatus === 'active' || cameraStatus === 'requesting'
+
   return (
     <div className="py-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 px-3">
         Controls
       </h3>
+
+      <div className="px-3 py-1 mb-1">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-[#999]">Camera Tracking</span>
+          <div className="flex items-center gap-2">
+            <span
+              style={{
+                display: 'inline-block',
+                width: 6,
+                height: 6,
+                borderRadius: '50%',
+                backgroundColor: STATUS_COLOR[cameraStatus],
+              }}
+            />
+            <span className="text-[10px]" style={{ color: STATUS_COLOR[cameraStatus] }}>
+              {STATUS_LABEL[cameraStatus]}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={() => controller?.setCameraTracking(!isCameraOn)}
+          disabled={!controller}
+          style={{
+            marginTop: 4,
+            width: '100%',
+            padding: '4px 0',
+            fontSize: 11,
+            border: '1px solid #333',
+            borderRadius: 4,
+            background: isCameraOn ? '#1a2a1a' : '#1a1a1a',
+            color: isCameraOn ? '#0c6' : '#999',
+            cursor: controller ? 'pointer' : 'not-allowed',
+          }}
+        >
+          {isCameraOn ? 'Disable Camera' : 'Enable Camera'}
+        </button>
+      </div>
 
       <Slider
         label="Head X"

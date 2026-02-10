@@ -3,8 +3,13 @@ import type { InternalModel } from 'pixi-live2d-display/cubism4'
 import { Live2DFactory, Live2DModel } from 'pixi-live2d-display/cubism4'
 
 import type { CharacterPackage } from '../characters/types'
+import type { CameraTrackingStatus } from '../lib/face-tracking/jeeliz-adapter'
+import { createJeelizAdapter } from '../lib/face-tracking/jeeliz-adapter'
 import type { Exp3Expression } from '../lib/live2d/exp3-engine'
 import { applyExp3Expression } from '../lib/live2d/exp3-engine'
+import { attachMouseGaze, resolveGaze } from '../lib/live2d/gaze'
+import { attachGestureHandlers } from '../lib/live2d/gestures'
+import { interceptStartMotion, patchIdleMotions } from '../lib/live2d/motion-patches'
 import { createLive2DIdleEyeFocus } from '../lib/live2d/saccade'
 
 // Import zip-loader side effects
@@ -27,6 +32,8 @@ export interface Live2DController {
   lookAt(x: number, y: number): void
   setMouthOpen(value: number): void
   setAutoSaccade(enabled: boolean): void
+  setCameraTracking(enabled: boolean): void
+  cameraTrackingStatus: CameraTrackingStatus
   isLoaded: boolean
   motionGroups: Record<string, number>
   activeMotion: ActiveMotion | null
@@ -35,12 +42,15 @@ export interface Live2DController {
 export function useLive2D(
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
   character: CharacterPackage,
+  jeelizCanvasRef?: React.RefObject<HTMLCanvasElement | null>,
 ): Live2DController {
   const [isLoaded, setIsLoaded] = useState(false)
   const [motionGroups, setMotionGroups] = useState<Record<string, number>>({})
   const [activeMotion, setActiveMotion] = useState<ActiveMotion | null>(null)
+  const [cameraTrackingStatus, setCameraTrackingStatus] = useState<CameraTrackingStatus>('off')
 
-  // Mutable refs for internal state
+  const jeelizRef = useRef(createJeelizAdapter())
+
   const controllerRef = useRef<{
     coreModel: any
     motionManager: any
@@ -49,6 +59,7 @@ export function useLive2D(
     currentExpressionWeight: number
     targetExpressionWeight: number
     autoSaccadeEnabled: boolean
+    cameraTrackingEnabled: boolean
   } | null>(null)
 
   useEffect(() => {
@@ -117,13 +128,13 @@ export function useLive2D(
 
       setScaleAndPosition()
 
-      // Core references
+      // --- Core references ---
+      let mouseGaze: { x: number; y: number } | null = null
       const idleEyeFocus = createLive2DIdleEyeFocus()
       const internalModel = live2DModel.internalModel
       const motionManager = internalModel.motionManager
       const coreModel = internalModel.coreModel as any
 
-      // Store controller state
       controllerRef.current = {
         coreModel,
         motionManager,
@@ -132,61 +143,38 @@ export function useLive2D(
         currentExpressionWeight: 0,
         targetExpressionWeight: 0,
         autoSaccadeEnabled: true,
+        cameraTrackingEnabled: false,
       }
 
-      // EyeBall curve patching (saccade only)
-      function patchEyeBallCurves(motion: any) {
-        if (!motion?._motionData?.curves) return
-        for (const curve of motion._motionData.curves) {
-          if (!curve.id || curve.id.startsWith('_')) continue
-          if (curve.id === 'ParamEyeBallX' || curve.id === 'ParamEyeBallY') {
-            curve._originalId = curve.id
-            curve.id = `_${curve.id}`
-          }
-        }
-      }
+      // --- Motion patches ---
+      patchIdleMotions(motionManager)
+      interceptStartMotion(motionManager, (group, index) => {
+        setActiveMotion({ group, index })
+      })
 
-      function patchAllIdleMotions() {
-        const idleGroup = motionManager.groups.idle
-        if (!idleGroup) return
-        motionManager.motionGroups[idleGroup]?.forEach(patchEyeBallCurves)
-      }
-
-      patchAllIdleMotions()
-
-      // Intercept startMotion to patch lazy-loaded idle motions + track active motion
+      // --- Gaze + idle tracking (motionManager.update hook) ---
       const idleGroupName = motionManager.groups.idle
-      const originalStartMotion = motionManager.startMotion.bind(motionManager)
-      ;(motionManager as any).startMotion = function (group: string, index: number, priority?: number) {
-        const result = originalStartMotion(group, index, priority)
-        if (group === idleGroupName) {
-          Promise.resolve(result).then(() => {
-            const motions = motionManager.motionGroups[group]
-            if (motions?.[index]) {
-              patchEyeBallCurves(motions[index])
-            }
-          })
-        }
-        // Track non-idle motion as active
-        if (group !== idleGroupName) {
-          setActiveMotion({ group, index })
-        }
-        return result
-      }
-
-      // Saccade hook + active motion tracking
       const originalMotionUpdate = motionManager.update.bind(motionManager)
       let prevIsIdle = true
+
       motionManager.update = function (cm: any, now: number) {
         const result = originalMotionUpdate(cm, now)
 
         const isIdle = !motionManager.state.currentGroup
           || motionManager.state.currentGroup === idleGroupName
-        if (isIdle && controllerRef.current?.autoSaccadeEnabled) {
+
+        const cameraGaze = controllerRef.current?.cameraTrackingEnabled
+          ? jeelizRef.current.getGaze()
+          : null
+
+        const gaze = resolveGaze(cameraGaze, mouseGaze)
+        if (gaze) {
+          coreModel.setParameterValueById('ParamEyeBallX', gaze.x)
+          coreModel.setParameterValueById('ParamEyeBallY', gaze.y)
+        } else if (isIdle && controllerRef.current?.autoSaccadeEnabled) {
           idleEyeFocus.update(internalModel, now)
         }
 
-        // Detect transition to idle → clear active motion
         if (isIdle && !prevIsIdle) {
           setActiveMotion(null)
         }
@@ -195,7 +183,7 @@ export function useLive2D(
         return result
       }
 
-      // Expression system (exp3 Add blend)
+      // --- Expression blend (coreModel.update hook) ---
       const FADE_SPEED = 4
       const originalCoreUpdate = coreModel.update.bind(coreModel)
       let lastUpdateTime = 0
@@ -207,7 +195,6 @@ export function useLive2D(
 
         const ctrl = controllerRef.current
         if (ctrl) {
-          // Fade expression weight toward target
           if (ctrl.currentExpressionWeight !== ctrl.targetExpressionWeight) {
             if (ctrl.currentExpressionWeight < ctrl.targetExpressionWeight) {
               ctrl.currentExpressionWeight = Math.min(
@@ -222,7 +209,6 @@ export function useLive2D(
             }
           }
 
-          // Apply expression deltas on top of motion-set values
           if (ctrl.currentExpression && ctrl.currentExpressionWeight > 0) {
             applyExp3Expression(coreModel, ctrl.currentExpression, ctrl.currentExpressionWeight)
           }
@@ -231,7 +217,7 @@ export function useLive2D(
         originalCoreUpdate()
       }
 
-      // Extract motion groups
+      // --- Extract motion groups ---
       const defs = (motionManager as any).definitions ?? {}
       const groups: Record<string, number> = {}
       for (const [group, motions] of Object.entries(defs)) {
@@ -239,58 +225,12 @@ export function useLive2D(
       }
       setMotionGroups(groups)
 
-      // --- Tap / Flick interaction ---
-      const FLICK_DIST = 30      // px — minimum drag to count as flick
-      const FLICK_TIME = 400     // ms — max duration for flick gesture
-      let pointerStart: { x: number; y: number; t: number } | null = null
+      // --- Event handlers ---
+      const cleanupGestures = attachGestureHandlers(
+        canvas!, live2DModel, motionManager, () => disposed,
+      )
+      const cleanupMouse = attachMouseGaze(container, (g) => { mouseGaze = g })
 
-      function onPointerDown(e: PointerEvent) {
-        pointerStart = { x: e.clientX, y: e.clientY, t: performance.now() }
-      }
-
-      function onPointerUp(e: PointerEvent) {
-        if (!pointerStart || disposed) return
-
-        const dx = e.clientX - pointerStart.x
-        const dy = e.clientY - pointerStart.y
-        const dist = Math.sqrt(dx * dx + dy * dy)
-        const elapsed = performance.now() - pointerStart.t
-        pointerStart = null
-
-        const rect = canvas!.getBoundingClientRect()
-        const sx = e.clientX - rect.left
-        const sy = e.clientY - rect.top
-        const hitAreas = live2DModel.hitTest(sx, sy)
-        const isBody = hitAreas.includes('Body')
-
-        if (dist < FLICK_DIST && elapsed < FLICK_TIME) {
-          // Tap
-          if (isBody) {
-            motionManager.startMotion('Tap@Body', 0)
-          } else {
-            motionManager.startMotion('Tap', Math.floor(Math.random() * 2))
-          }
-        } else if (elapsed < FLICK_TIME) {
-          // Flick — determine direction
-          const absDx = Math.abs(dx)
-          const absDy = Math.abs(dy)
-
-          if (absDy > absDx && dy < 0) {
-            motionManager.startMotion('FlickUp', 0)
-          } else if (absDy > absDx && dy > 0) {
-            motionManager.startMotion('FlickDown', 0)
-          } else if (isBody) {
-            motionManager.startMotion('Flick@Body', 0)
-          } else {
-            motionManager.startMotion('Flick', 0)
-          }
-        }
-      }
-
-      canvas!.addEventListener('pointerdown', onPointerDown)
-      canvas!.addEventListener('pointerup', onPointerUp)
-
-      // Resize observer — watch container, not canvas (Pixi overrides canvas size)
       const resizeObserver = new ResizeObserver(() => {
         if (disposed) return
         app.renderer.resize(container.clientWidth, container.clientHeight)
@@ -300,11 +240,10 @@ export function useLive2D(
 
       setIsLoaded(true)
 
-      // Cleanup on unmount stored in the dispose closure
       return () => {
         resizeObserver.disconnect()
-        canvas!.removeEventListener('pointerdown', onPointerDown)
-        canvas!.removeEventListener('pointerup', onPointerUp)
+        cleanupGestures()
+        cleanupMouse()
       }
     }
 
@@ -317,6 +256,8 @@ export function useLive2D(
     return () => {
       disposed = true
       cleanupResize?.()
+      jeelizRef.current.stop()
+      setCameraTrackingStatus('off')
       controllerRef.current = null
       setIsLoaded(false)
       if (live2DModel) {
@@ -415,6 +356,33 @@ export function useLive2D(
       }
     },
 
+    setCameraTracking(enabled: boolean) {
+      const ctrl = controllerRef.current
+      if (!ctrl) return
+
+      if (enabled) {
+        const canvas = jeelizCanvasRef?.current
+        if (!canvas) {
+          setCameraTrackingStatus('error')
+          return
+        }
+        ctrl.cameraTrackingEnabled = true
+        setCameraTrackingStatus('requesting')
+        jeelizRef.current.start(canvas).then(
+          () => setCameraTrackingStatus('active'),
+          () => {
+            ctrl.cameraTrackingEnabled = false
+            setCameraTrackingStatus('error')
+          },
+        )
+      } else {
+        ctrl.cameraTrackingEnabled = false
+        jeelizRef.current.stop()
+        setCameraTrackingStatus('off')
+      }
+    },
+
+    cameraTrackingStatus,
     isLoaded,
     motionGroups,
     activeMotion,

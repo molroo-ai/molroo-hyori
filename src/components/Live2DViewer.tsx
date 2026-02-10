@@ -11,13 +11,16 @@ interface Live2DViewerProps {
 
 export function Live2DViewer({ character, onReady, onActiveMotionChange }: Live2DViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const controller = useLive2D(canvasRef, character)
+  const jeelizCanvasRef = useRef<HTMLCanvasElement>(null)
+  const controller = useLive2D(canvasRef, character, jeelizCanvasRef)
   const notifiedRef = useRef(false)
 
-  if (controller.isLoaded && !notifiedRef.current) {
-    notifiedRef.current = true
-    onReady?.(controller)
-  }
+  useEffect(() => {
+    if (controller.isLoaded && !notifiedRef.current) {
+      notifiedRef.current = true
+      onReady?.(controller)
+    }
+  }, [controller.isLoaded])
 
   useEffect(() => {
     onActiveMotionChange?.(controller.activeMotion)
@@ -28,6 +31,13 @@ export function Live2DViewer({ character, onReady, onActiveMotionChange }: Live2
       <canvas
         ref={canvasRef}
         className="w-full h-full block"
+      />
+      {/* Hidden canvas for Jeeliz FaceFilter WebGL processing */}
+      <canvas
+        ref={jeelizCanvasRef}
+        width={320}
+        height={240}
+        style={{ position: 'absolute', top: -9999, left: -9999, width: 1, height: 1 }}
       />
       {!controller.isLoaded && (
         <div
