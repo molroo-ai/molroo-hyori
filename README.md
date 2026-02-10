@@ -32,6 +32,10 @@
   <img src="assets/preview.png" alt="molroo-hyori preview" width="720" />
 </p>
 
+<p align="center">
+  <img src="assets/preview-sidebar.png" alt="molroo-hyori sidebar" width="720" />
+</p>
+
 ## What is this?
 
 A web-based Live2D avatar controller that demonstrates **exp3 expression blending** on top of motion playback. Instead of switching between canned expression files, each expression is a set of parameter deltas blended additively over the current motion state — enabling smooth, layered facial control.
@@ -43,30 +47,31 @@ A web-based Live2D avatar controller that demonstrates **exp3 expression blendin
 - **Touch interaction** — Tap and flick on the avatar trigger contextual reactions
 - **Idle saccade** — Procedural eye focus animation during idle state
 - **Manual controls** — Head rotation, body rotation, eye gaze, mouth open sliders
+- **Chat UI** — KakaoTalk-style chat with speech bubbles, messages render behind the character
+- **Responsive layout** — Toggle sidebar overlay, adaptive chat width, canvas auto-resize
 - **Swappable characters** — `CharacterPackage` interface for plugging in different models
 
 ## Architecture
 
 ```
-┌─ Browser ──────────────────────────────────────────────────────┐
-│                                                                │
-│  ┌─ Sidebar (280px) ─────────┐  ┌─ Viewer (flex) ──────────┐  │
-│  │ ExpressionPanel (20 btns) │  │                           │  │
-│  │ MotionPanel (presets+raw)  │  │   pixi-live2d-display     │  │
-│  │ ControlPanel (sliders)    │  │   ┌───────────────────┐   │  │
-│  │ ChatPanel (Phase 2)       │  │   │  Live2D Model     │   │  │
-│  └───────────────────────────┘  │   │  + exp3 engine     │   │  │
-│                                  │   │  + idle saccade    │   │  │
-│                                  │   └───────────────────┘   │  │
-│                                  └───────────────────────────┘  │
-│                                                                │
-│  useLive2D hook                                                │
-│  ├── Pixi Application lifecycle (create / resize / destroy)    │
-│  ├── EyeBall curve patch (saccade takes over idle eye curves)  │
-│  ├── motionManager.update hook → saccade injection             │
-│  ├── coreModel.update hook → exp3 expression fade injection    │
-│  └── Pointer event detection → tap / flick → motion trigger    │
-└────────────────────────────────────────────────────────────────┘
+┌─ Browser ──────────────────────────────────────────────────────────┐
+│                                                                    │
+│  ┌─ Sidebar (overlay, toggle) ─┐  ┌─ Main Area (flex) ─────────┐  │
+│  │ ExpressionPanel (20 btns)   │  │                             │  │
+│  │ MotionPanel (presets+raw)   │  │  z=2  ChatMessages (behind) │  │
+│  │ ControlPanel (sliders)      │  │  z=5  Live2D Canvas         │  │
+│  └─────────────────────────────┘  │  z=10 InputBar (floating)   │  │
+│                                    │  z=20 SpeechBubble          │  │
+│                                    └─────────────────────────────┘  │
+│                                                                    │
+│  useLive2D hook                                                    │
+│  ├── Pixi Application lifecycle (create / resize / destroy)        │
+│  ├── ResizeObserver on container → responsive canvas               │
+│  ├── EyeBall curve patch (saccade takes over idle eye curves)      │
+│  ├── motionManager.update hook → saccade injection                 │
+│  ├── coreModel.update hook → exp3 expression fade injection        │
+│  └── Pointer event detection → tap / flick → motion trigger        │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ### exp3 Blending
@@ -142,7 +147,8 @@ src/
     ├── ExpressionPanel.tsx      # Expression toggle buttons
     ├── MotionPanel.tsx          # Preset + raw motion buttons
     ├── ControlPanel.tsx         # Parameter sliders
-    └── ChatPanel.tsx            # Chat placeholder (Phase 2)
+    ├── ChatPanel.tsx            # Chat UI (messages + speech bubble)
+    └── ChatPanel.css            # Chat styles + z-layer layout
 ```
 
 ## CharacterPackage
@@ -167,9 +173,11 @@ const myCharacter: CharacterPackage = {
 
 ## Roadmap
 
-- [ ] **Phase 2**: Chat integration (molroo-api + Anthropic SDK)
-- [ ] **Phase 2**: Expression driven by emotion engine (VAD → exp3 mapping)
+- [x] Chat UI with speech bubbles and z-layered rendering
+- [x] Responsive layout with toggleable sidebar
 - [x] GitHub Pages deployment with auto-build
+- [ ] Chat integration (molroo-api + Anthropic SDK)
+- [ ] Expression driven by emotion engine (VAD → exp3 mapping)
 
 ## Third-Party Notices
 
