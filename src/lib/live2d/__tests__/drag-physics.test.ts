@@ -206,6 +206,60 @@ describe('attachDragPhysics', () => {
     expect(result).toBeNull()
   })
 
+  it('produces wind from drag velocity', () => {
+    const canvas = makeCanvas()
+    const dp = attachDragPhysics(canvas)
+
+    dp.update()
+    advanceTime(16)
+
+    // Start drag at center
+    fire(canvas, 'pointerdown', 200, 200)
+    advanceTime(16)
+    dp.update()
+
+    // Move rapidly to the right
+    fire(canvas, 'pointermove', 350, 200)
+    advanceTime(16)
+
+    const result = dp.update()
+    expect(result).not.toBeNull()
+    // Rapid rightward movement → positive windX
+    expect(result!.windX).toBeGreaterThan(0)
+
+    dp.cleanup()
+  })
+
+  it('wind decays to zero when drag stops', () => {
+    const canvas = makeCanvas()
+    const dp = attachDragPhysics(canvas)
+
+    dp.update()
+    advanceTime(16)
+
+    fire(canvas, 'pointerdown', 200, 200)
+    advanceTime(16)
+    dp.update()
+
+    fire(canvas, 'pointermove', 350, 200)
+    advanceTime(16)
+    dp.update()
+
+    // Hold still — velocity should settle (needs many frames for smoothing)
+    for (let i = 0; i < 120; i++) {
+      advanceTime(16)
+      dp.update()
+    }
+
+    advanceTime(16)
+    const result = dp.update()
+    expect(result).not.toBeNull()
+    // After holding still long enough, wind should be near zero
+    expect(Math.abs(result!.windX)).toBeLessThan(0.1)
+
+    dp.cleanup()
+  })
+
   it('inverts Y axis (drag down → negative angleY = look down)', () => {
     const canvas = makeCanvas()
     const dp = attachDragPhysics(canvas)

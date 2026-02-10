@@ -155,6 +155,8 @@ export function useLive2D(
 
       // --- Drag physics ---
       const dragPhysics = attachDragPhysics(canvas!)
+      // Cache physics rig reference for wind control
+      const physicsRig = (internalModel as any).physics?._physicsRig ?? null
 
       // --- Gaze + idle tracking (motionManager.update hook) ---
       const idleGroupName = motionManager.groups.idle
@@ -164,7 +166,7 @@ export function useLive2D(
       motionManager.update = function (cm: any, now: number) {
         const result = originalMotionUpdate(cm, now)
 
-        // Apply drag-based head/body rotation (blended with motion values)
+        // Apply drag-based head/body rotation + wind
         const drag = dragPhysics.update()
         if (drag) {
           const w = drag.weight
@@ -175,6 +177,15 @@ export function useLive2D(
           coreModel.setParameterValueById('ParamAngleX', ax * mw + drag.angleX * w)
           coreModel.setParameterValueById('ParamAngleY', ay * mw + drag.angleY * w)
           coreModel.setParameterValueById('ParamBodyAngleX', bx * mw + drag.bodyAngleX * w)
+
+          // Direct wind force on physics rig (hair/accessories sway)
+          if (physicsRig) {
+            physicsRig.wind.x = drag.windX
+            physicsRig.wind.y = drag.windY
+          }
+        } else if (physicsRig) {
+          physicsRig.wind.x = 0
+          physicsRig.wind.y = 0
         }
 
         const isIdle = !motionManager.state.currentGroup
