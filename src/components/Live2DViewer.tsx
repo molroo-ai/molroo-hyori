@@ -24,13 +24,39 @@ export function Live2DViewer({ character, onReady, onActiveMotionChange }: Live2
   }, [controller.activeMotion])
 
   return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'block',
-      }}
-    />
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full block"
+      />
+      {!controller.isLoaded && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 12,
+            color: '#888',
+            fontSize: 14,
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              border: '2px solid #333',
+              borderTop: '2px solid #888',
+              borderRadius: '50%',
+              animation: 'spin 0.8s linear infinite',
+            }}
+          />
+          <span>Loading model…</span>
+          <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        </div>
+      )}
+    </div>
   )
 }
