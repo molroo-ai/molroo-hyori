@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { hyoriCharacter } from './characters/hyori'
 import { Live2DViewer } from './components/Live2DViewer'
 import { MangaBackground } from './components/MangaBackground'
@@ -7,6 +7,7 @@ import { DevPanel } from './components/dev/DevPanel'
 import { useSession } from './hooks/useSession'
 import { applyEmotionToLive2D } from './lib/live2d/emotion-controller'
 import type { Live2DController, ActiveMotion } from './hooks/useLive2D'
+import type { LlmConfig } from './hooks/useSession'
 import type { TurnResultResponse } from './lib/api/types'
 import './App.css'
 
@@ -14,6 +15,7 @@ export default function App() {
   const [controller, setController] = useState<Live2DController | null>(null)
   const [activeMotion, setActiveMotion] = useState<ActiveMotion | null>(null)
   const [devOpen, setDevOpen] = useState(false)
+  const autoSessionRef = useRef(false)
 
   const {
     session, molrooApiKey, setMolrooApiKey,
@@ -21,6 +23,36 @@ export default function App() {
     turnHistory, currentState, isProcessing,
     createSession, sendMessage, reset, presets,
   } = useSession()
+
+  // Auto-create session from URL params
+  // e.g. ?provider=openai&apiKey=sk-xxx&model=gpt-4o-mini&preset=cheerful_companion
+  // or   ?baseUrl=https://api.example.com/v1&apiKey=xxx&model=my-model
+  useEffect(() => {
+    if (autoSessionRef.current) return
+    const params = new URLSearchParams(window.location.search)
+    const provider = params.get('provider')
+      ?? (params.get('baseUrl') ? 'openai-compatible' : null)
+    if (!provider) return
+
+    autoSessionRef.current = true
+
+    const config: LlmConfig = {
+      provider,
+      apiKey: params.get('apiKey') ?? params.get('key') ?? '',
+      model: params.get('model') ?? undefined,
+      baseUrl: params.get('baseUrl') ?? undefined,
+    }
+    setLlmConfig(config)
+
+    const presetKey = params.get('preset') ?? Object.keys(presets)[0]
+    const preset = presets[presetKey]
+    if (preset) {
+      createSession(presetKey, preset.identity)
+    }
+
+    // Remove API key from URL for security
+    window.history.replaceState({}, '', window.location.pathname)
+  }, [setLlmConfig, createSession, presets])
 
   function handleTurnResponse(res: TurnResultResponse) {
     if (!controller) return
