@@ -191,18 +191,6 @@ export function useLive2D(
         const isIdle = !motionManager.state.currentGroup
           || motionManager.state.currentGroup === idleGroupName
 
-        const cameraGaze = controllerRef.current?.cameraTrackingEnabled
-          ? jeelizRef.current.getGaze()
-          : null
-
-        const gaze = resolveGaze(cameraGaze, mouseGaze)
-        if (gaze) {
-          coreModel.setParameterValueById('ParamEyeBallX', gaze.x)
-          coreModel.setParameterValueById('ParamEyeBallY', gaze.y)
-        } else if (isIdle && controllerRef.current?.autoSaccadeEnabled) {
-          idleEyeFocus.update(internalModel, now)
-        }
-
         if (isIdle && !prevIsIdle) {
           setActiveMotion(null)
         }
@@ -221,6 +209,9 @@ export function useLive2D(
         const timeDelta = lastUpdateTime ? (now - lastUpdateTime) / 1000 : 0
         lastUpdateTime = now
 
+        originalCoreUpdate()
+
+        // Apply expression + gaze AFTER core update so they persist
         const ctrl = controllerRef.current
         if (ctrl) {
           if (ctrl.currentExpressionWeight !== ctrl.targetExpressionWeight) {
@@ -242,7 +233,17 @@ export function useLive2D(
           }
         }
 
-        originalCoreUpdate()
+        // Apply gaze AFTER expression so both persist
+        const cameraGaze = ctrl?.cameraTrackingEnabled
+          ? jeelizRef.current.getGaze()
+          : null
+        const gazeResult = resolveGaze(cameraGaze, mouseGaze)
+        if (gazeResult) {
+          coreModel.setParameterValueById('ParamEyeBallX', gazeResult.x)
+          coreModel.setParameterValueById('ParamEyeBallY', gazeResult.y)
+        } else if (ctrl?.autoSaccadeEnabled) {
+          idleEyeFocus.update(internalModel, now)
+        }
       }
 
       // --- Extract motion groups ---

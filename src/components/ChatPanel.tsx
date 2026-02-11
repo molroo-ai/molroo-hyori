@@ -17,6 +17,8 @@ interface ChatPanelProps {
     displayText: string
   } | null>
   onTurnResponse: (res: TurnResultResponse) => void
+  emotionReaction?: string | null
+  onEmotionReactionDone?: () => void
 }
 
 export function ChatPanel({
@@ -25,6 +27,8 @@ export function ChatPanel({
   isProcessing,
   onSend,
   onTurnResponse,
+  emotionReaction,
+  onEmotionReactionDone,
 }: ChatPanelProps) {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -33,6 +37,14 @@ export function ChatPanel({
   const [historyOpen, setHistoryOpen] = useState(false)
   const userListRef = useRef<HTMLDivElement>(null)
   const floatingTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const reactionTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => {
+    if (!emotionReaction) return
+    if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current)
+    reactionTimerRef.current = setTimeout(() => onEmotionReactionDone?.(), 1800)
+    return () => { if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current) }
+  }, [emotionReaction])
 
   useEffect(() => {
     if (session.status === 'idle') setMessages([])
@@ -71,8 +83,8 @@ export function ChatPanel({
 
   function showFloating(text: string) {
     if (floatingTimerRef.current) clearTimeout(floatingTimerRef.current)
-    // ~80ms per char, min 3s, max 12s
-    const ms = Math.min(12000, Math.max(3000, text.length * 80))
+    // ~50ms per char, min 2s, max 5s
+    const ms = Math.min(5000, Math.max(2000, text.length * 50))
     setFloatingDuration(ms / 1000)
     setFloatingText(text)
     floatingTimerRef.current = setTimeout(() => setFloatingText(null), ms)
@@ -91,6 +103,12 @@ export function ChatPanel({
           style={{ animationDuration: `${floatingDuration}s` }}
         >
           {floatingText}
+        </div>
+      )}
+
+      {emotionReaction && (
+        <div className="emotion-reaction-bubble" key={emotionReaction + Date.now()}>
+          {emotionReaction}
         </div>
       )}
 

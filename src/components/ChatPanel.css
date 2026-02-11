@@ -67,6 +67,45 @@
   }
 }
 
+/* ── Emotion reaction bubble (dashed, small) ── */
+.emotion-reaction-bubble {
+  position: absolute;
+  top: 28%;
+  left: calc(50% + 20px);
+  z-index: 20;
+  padding: 8px 16px;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(30, 30, 30, 0.6);
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+  border-radius: 20px;
+  pointer-events: none;
+  animation: reactionPop 1.8s ease-out forwards;
+}
+
+@keyframes reactionPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translateY(8px);
+  }
+  10% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  20% {
+    transform: scale(1);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9) translateY(-10px);
+  }
+}
+
 /* ── Messages layer (behind character, z-index < 5) ── */
 .chat-messages-layer {
   position: absolute;
@@ -92,10 +131,15 @@
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   gap: 8px;
   padding: 16px 20px 90px;
   pointer-events: auto;
+}
+
+/* Spacer pushes messages to bottom (replaces justify-content: flex-end which blocks mouse wheel scroll) */
+.chat-messages::before {
+  content: '';
+  flex: 1 1 auto;
 }
 
 @media (max-width: 600px) {

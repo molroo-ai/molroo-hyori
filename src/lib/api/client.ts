@@ -22,8 +22,8 @@ export function createMolrooClient(baseUrl: string, apiKey: string) {
       return data
     },
 
-    async processTurn(body: Schemas['ProcessTurnRequest']) {
-      const { data, error } = await client.POST('/v1/turn', { body })
+    async processAppraisal(body: Schemas['ProcessAppraisalRequest']) {
+      const { data, error } = await client.POST('/v1/turn/appraisal', { body })
       if (error) throw new Error((error as Schemas['ErrorResponse']).error.message)
       return data
     },

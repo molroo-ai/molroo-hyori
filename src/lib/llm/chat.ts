@@ -1,4 +1,8 @@
+import { generateText, tool } from 'ai'
+import { z } from 'zod'
 import { getProvider } from './providers'
+import { createModel } from './model-factory'
+import type { AppraisalVector } from '../api/types'
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -12,66 +16,42 @@ export interface LlmConfig {
   baseUrl?: string
 }
 
+export interface ChatCompletionOptions {
+  temperature?: number
+  maxOutputTokens?: number
+}
+
 /**
- * Call any OpenAI-compatible chat completions endpoint.
- * Anthropic's direct-browser header is handled automatically.
+ * Call a chat completion via Vercel AI SDK generateText.
+ * Replaces the old raw-fetch approach — AI SDK handles Anthropic/OpenAI protocol differences.
  */
-async function callChatCompletion(
-  baseUrl: string,
-  apiKey: string,
-  model: string,
+export async function callChatCompletion(
+  config: LlmConfig,
   messages: ChatMessage[],
-  extraHeaders?: Record<string, string>,
+  options?: ChatCompletionOptions,
 ): Promise<string> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...extraHeaders,
-  }
-  if (apiKey) {
-    headers['Authorization'] = `Bearer ${apiKey}`
-  }
+  const model = createModel(config)
+  if (!model) throw new Error('Cannot create model for provider: ' + config.provider)
 
-  const isAnthropic = baseUrl.includes('anthropic.com')
-  const base = baseUrl.replace(/\/+$/, '')
+  const systemMessage = messages.find(m => m.role === 'system')
+  const nonSystemMessages = messages.filter(m => m.role !== 'system')
 
-  const res = await fetch(`${base}${isAnthropic ? '/messages' : '/chat/completions'}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(
-      isAnthropic
-        ? {
-            model,
-            max_tokens: 512,
-            messages: messages.filter(m => m.role !== 'system'),
-            system: messages.find(m => m.role === 'system')?.content ?? '',
-          }
-        : {
-            model,
-            messages,
-            max_tokens: 512,
-            temperature: 0.8,
-          },
-    ),
+  const { text } = await generateText({
+    model,
+    system: systemMessage?.content,
+    messages: nonSystemMessages.map(m => ({
+      role: m.role as 'user' | 'assistant',
+      content: m.content,
+    })),
+    temperature: options?.temperature ?? 0.8,
+    maxOutputTokens: options?.maxOutputTokens ?? 512,
   })
 
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    const msg = (body as any)?.error?.message ?? `LLM error ${res.status}`
-    throw new Error(msg)
-  }
-
-  const data = (await res.json()) as any
-
-  // Anthropic returns content[0].text, OpenAI-compat returns choices[0].message.content
-  if (isAnthropic) {
-    return data.content?.[0]?.text ?? ''
-  }
-  return data.choices?.[0]?.message?.content ?? ''
+  return text
 }
 
 /**
  * Generate a conversational response using the configured LLM and molroo prompt_data.
- *
  * Returns null if provider is 'none' or no API key is set (when required).
  */
 export async function generateResponse(
@@ -87,10 +67,7 @@ export async function generateResponse(
   const providerDef = getProvider(config.provider)
   if (!providerDef) return null
   if (providerDef.apiKeyRequired && !config.apiKey) return null
-
-  const baseUrl = config.baseUrl || providerDef.baseUrl
-  const model = config.model || providerDef.defaultModel
-  if (!model) return null
+  if (!config.model && !providerDef.defaultModel) return null
 
   const system = [systemPrompt, contextBlock, instructionBlock]
     .filter(Boolean)
@@ -102,5 +79,77 @@ export async function generateResponse(
     { role: 'user', content: userMessage },
   ]
 
-  return callChatCompletion(baseUrl, config.apiKey, model, messages, providerDef.headers)
+  return callChatCompletion(config, messages)
+}
+
+/* ── Combined response + appraisal via tool calling ── */
+
+const DEFAULT_APPRAISAL: AppraisalVector = {
+  goal_relevance: 0.5, goal_congruence: 0.5, expectedness: 0.5,
+  controllability: 0.5, agency: 0.5, norm_compatibility: 0.5,
+}
+
+const appraisalSchema = z.object({
+  goal_relevance: z.number().min(0).max(1).describe('How relevant to your goals? 0=irrelevant, 1=critical'),
+  goal_congruence: z.number().min(0).max(1).describe('Helps or threatens goals? 0=threatening, 1=supportive'),
+  expectedness: z.number().min(0).max(1).describe('How predictable? 0=shocking, 1=expected'),
+  controllability: z.number().min(0).max(1).describe('How much control? 0=helpless, 1=in control'),
+  agency: z.number().min(0).max(1).describe('Who drives? 0=user drives, 1=you lead'),
+  norm_compatibility: z.number().min(0).max(1).describe('How appropriate? 0=inappropriate, 1=normal'),
+})
+
+const appraisalTool = tool({
+  description: `Evaluate how you emotionally react to the user's message. Rate each dimension 0.0–1.0. You MUST call this tool alongside your text response.`,
+  inputSchema: appraisalSchema,
+})
+
+/**
+ * Single LLM call that returns both conversational text AND appraisal.
+ * Uses tool calling — the model writes text and calls report_appraisal in one response.
+ */
+export async function generateWithAppraisal(
+  config: LlmConfig,
+  systemPrompt: string,
+  contextBlock: string,
+  instructionBlock: string,
+  userMessage: string,
+  history?: ChatMessage[],
+): Promise<{ text: string | null; appraisal: AppraisalVector }> {
+  if (config.provider === 'none') return { text: null, appraisal: DEFAULT_APPRAISAL }
+
+  const providerDef = getProvider(config.provider)
+  if (!providerDef) return { text: null, appraisal: DEFAULT_APPRAISAL }
+  if (providerDef.apiKeyRequired && !config.apiKey) return { text: null, appraisal: DEFAULT_APPRAISAL }
+  if (!config.model && !providerDef.defaultModel) return { text: null, appraisal: DEFAULT_APPRAISAL }
+
+  const model = createModel(config)
+  if (!model) return { text: null, appraisal: DEFAULT_APPRAISAL }
+
+  const system = [
+    systemPrompt, contextBlock, instructionBlock,
+    'After writing your reply, ALWAYS call the report_appraisal tool to report your emotional reaction.',
+  ].filter(Boolean).join('\n\n')
+
+  // Filter out empty-content messages (Anthropic rejects empty text blocks)
+  const msgs = [
+    ...(history ?? []),
+    { role: 'user' as const, content: userMessage },
+  ].filter(m => m.content)
+
+  const { text, toolCalls } = await generateText({
+    model,
+    system,
+    messages: msgs.map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    tools: { report_appraisal: appraisalTool },
+    toolChoice: 'auto',
+    temperature: 0.8,
+    maxOutputTokens: 768,
+  })
+
+  const call = toolCalls.find(tc => tc.toolName === 'report_appraisal')
+  const appraisal = call
+    ? { ...DEFAULT_APPRAISAL, ...(call.input as Partial<AppraisalVector>) }
+    : DEFAULT_APPRAISAL
+
+  return { text: text || null, appraisal }
 }

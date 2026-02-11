@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { createMolrooClient, DEFAULT_API_URL, DEFAULT_API_KEY } from '../lib/api/client'
 import { PERSONA_PRESETS } from '../lib/api/presets'
-import { generateResponse } from '../lib/llm/chat'
+import { generateWithAppraisal } from '../lib/llm/chat'
 import type { LlmConfig } from '../lib/llm/chat'
 import type { TurnResultResponse, StateResponse, PersonaIdentity } from '../lib/api/types'
 
@@ -70,10 +70,17 @@ export function useSession() {
   const createSession = useCallback(async (presetKey: string, identity: PersonaIdentity) => {
     setSession({ status: 'creating', sessionId: null, presetName: presetKey, error: null })
     try {
+      console.log('[Session] creating...', presetKey)
       const res = await client.createSession({
         persona: { identity },
         preset: presetKey,
       })
+      console.log('[Session] created:', res.sessionId)
+      if (!res.sessionId) {
+        console.error('[Session] No sessionId in response:', JSON.stringify(res))
+        setSession(prev => ({ ...prev, status: 'error', error: 'No sessionId in response' }))
+        return
+      }
       setSession({ status: 'active', sessionId: res.sessionId, presetName: presetKey, error: null })
       setTurnHistory([])
       setCurrentState(null)
@@ -81,13 +88,21 @@ export function useSession() {
 
       systemPromptRef.current = res.prompt_data?.system?.formatted?.system_prompt ?? ''
 
-      const state = await client.getState(res.sessionId)
-      setCurrentState(state)
+      try {
+        const state = await client.getState(res.sessionId)
+        setCurrentState(state)
+      } catch (stateErr) {
+        console.warn('[Session] getState failed (non-fatal):', stateErr)
+      }
     } catch (err) {
+      console.error('[Session] createSession failed:', err)
       const msg = err instanceof Error ? err.message : 'Failed to create session'
       setSession(prev => ({ ...prev, status: 'error', error: msg }))
     }
   }, [client])
+
+  // Cached prompt_data from last appraisal response (context + instruction update each turn)
+  const promptDataRef = useRef<{ ctx: string; inst: string }>({ ctx: '', inst: '' })
 
   const sendMessage = useCallback(async (message: string): Promise<{
     turnResponse: TurnResultResponse
@@ -96,26 +111,54 @@ export function useSession() {
     if (!session.sessionId || isProcessing) return null
     setIsProcessing(true)
     try {
-      const res = await client.processTurn({
-        sessionId: session.sessionId,
-        message,
-      })
-
+      let finalRes: TurnResultResponse | null = null
       let llmText: string | null = null
+
       if (llmConfig.provider !== 'none' && llmConfig.apiKey) {
-        const ctx = res.prompt_data?.context?.formatted?.context_block ?? ''
-        const inst = res.prompt_data?.instruction?.formatted?.instruction_block ?? ''
         const history = turnHistory.flatMap(t => [
           { role: 'user' as const, content: t.userMessage },
           { role: 'assistant' as const, content: t.llmResponse ?? t.response.response },
         ])
-        llmText = await generateResponse(llmConfig, systemPromptRef.current, ctx, inst, message, history)
+
+        // Single LLM call → text + appraisal via tool calling
+        const { text: chatResponse, appraisal } = await generateWithAppraisal(
+          llmConfig, systemPromptRef.current,
+          promptDataRef.current.ctx, promptDataRef.current.inst,
+          message, history,
+        )
+
+        llmText = chatResponse
+        console.log('[Appraisal] Evaluated:', appraisal)
+
+        // Send appraisal to molroo API → get emotion + updated prompt_data
+        finalRes = await client.processAppraisal({
+          sessionId: session.sessionId,
+          appraisal,
+          context: message,
+        })
+        console.log('[Appraisal] Result:', finalRes.discrete_emotion)
+
+        // Cache updated prompt_data for next turn
+        promptDataRef.current = {
+          ctx: finalRes.prompt_data?.context?.formatted?.context_block ?? '',
+          inst: finalRes.prompt_data?.instruction?.formatted?.instruction_block ?? '',
+        }
+      } else {
+        // No LLM — just send appraisal with defaults
+        finalRes = await client.processAppraisal({
+          sessionId: session.sessionId,
+          appraisal: {
+            goal_relevance: 0.5, goal_congruence: 0.5, expectedness: 0.5,
+            controllability: 0.5, agency: 0.5, norm_compatibility: 0.5,
+          },
+          context: message,
+        })
       }
 
       const entry: TurnEntry = {
         id: ++turnIdRef.current,
         userMessage: message,
-        response: res,
+        response: finalRes,
         llmResponse: llmText,
         timestamp: Date.now(),
       }
@@ -123,18 +166,18 @@ export function useSession() {
 
       setCurrentState(prev => prev ? {
         ...prev,
-        emotion: res.new_emotion,
-        emotion_intensity: res.emotion_intensity,
-        discrete_emotion: res.discrete_emotion,
-        body_budget: res.body_budget,
-        soul_stage: res.soul_stage,
-        velocity: res.velocity,
-        blend_ratio: res.blend_ratio,
+        emotion: finalRes.new_emotion,
+        emotion_intensity: finalRes.emotion_intensity,
+        discrete_emotion: finalRes.discrete_emotion,
+        body_budget: finalRes.body_budget,
+        soul_stage: finalRes.soul_stage,
+        velocity: finalRes.velocity,
+        blend_ratio: finalRes.blend_ratio,
       } : null)
 
       return {
-        turnResponse: res,
-        displayText: llmText ?? res.response,
+        turnResponse: finalRes,
+        displayText: llmText ?? finalRes.response,
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to process turn'
@@ -144,6 +187,21 @@ export function useSession() {
       setIsProcessing(false)
     }
   }, [session.sessionId, isProcessing, llmConfig, client])
+
+  const resumeSession = useCallback(async (sessionId: string) => {
+    setSession({ status: 'creating', sessionId: null, presetName: null, error: null })
+    try {
+      const state = await client.getState(sessionId)
+      setSession({ status: 'active', sessionId, presetName: null, error: null })
+      setTurnHistory([])
+      setCurrentState(state)
+      turnIdRef.current = 0
+      systemPromptRef.current = ''
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Session not found'
+      setSession(prev => ({ ...prev, status: 'error', error: msg }))
+    }
+  }, [client])
 
   const reset = useCallback(() => {
     setSession(INITIAL_SESSION)
@@ -163,6 +221,7 @@ export function useSession() {
     currentState,
     isProcessing,
     createSession,
+    resumeSession,
     sendMessage,
     reset,
     presets: PERSONA_PRESETS,

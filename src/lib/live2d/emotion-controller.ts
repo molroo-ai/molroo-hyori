@@ -52,11 +52,24 @@ function modulateByBudget(weight: number, bodyBudget: number): number {
   return weight * factor
 }
 
+/** Emotion → reaction motion group for visual emphasis */
+const EMOTION_TO_MOTION: Record<string, { group: string; index: number }> = {
+  surprise: { group: 'Flick', index: 0 },
+  excitement: { group: 'FlickUp', index: 0 },
+  anger: { group: 'FlickDown', index: 0 },
+  disgust: { group: 'FlickDown', index: 0 },
+  fear: { group: 'FlickUp', index: 0 },
+  sadness: { group: 'FlickDown', index: 0 },
+  shame: { group: 'FlickDown', index: 0 },
+}
+
 export interface EmotionCommand {
   expression: string
   weight: number
   /** Apply sleepy overlay when body_budget is very low */
   fatigueOverlay: number
+  /** Reaction motion to play on emotion change */
+  motion?: { group: string; index: number }
 }
 
 /**
@@ -111,14 +124,17 @@ export function resolveExpression(
   return { expression: expressionName, weight, fatigueOverlay }
 }
 
+let prevEmotion: string | null = null
+
 /**
  * Apply a turn response to a Live2D controller.
- * Call this after each API turn to update the character's expression.
+ * Call this after each API turn to update the character's expression + trigger motion.
  */
 export function applyEmotionToLive2D(
   controller: Live2DController,
   turnResponse: TurnResultResponse,
 ): void {
+  const emotion = turnResponse.discrete_emotion.primary
   const cmd = resolveExpression(
     turnResponse.discrete_emotion,
     turnResponse.new_emotion,
@@ -131,4 +147,13 @@ export function applyEmotionToLive2D(
   } else {
     controller.clearExpression()
   }
+
+  // Play reaction motion on emotion change
+  if (prevEmotion && prevEmotion !== emotion) {
+    const motion = EMOTION_TO_MOTION[emotion]
+    if (motion) {
+      controller.playMotion(motion.group, motion.index)
+    }
+  }
+  prevEmotion = emotion
 }
