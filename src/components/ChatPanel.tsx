@@ -29,6 +29,8 @@ export function ChatPanel({
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [floatingText, setFloatingText] = useState<string | null>(null)
+  const [floatingDuration, setFloatingDuration] = useState(3.5)
+  const [historyOpen, setHistoryOpen] = useState(false)
   const userListRef = useRef<HTMLDivElement>(null)
   const floatingTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
@@ -69,8 +71,11 @@ export function ChatPanel({
 
   function showFloating(text: string) {
     if (floatingTimerRef.current) clearTimeout(floatingTimerRef.current)
+    // ~80ms per char, min 3s, max 12s
+    const ms = Math.min(12000, Math.max(3000, text.length * 80))
+    setFloatingDuration(ms / 1000)
     setFloatingText(text)
-    floatingTimerRef.current = setTimeout(() => setFloatingText(null), 3500)
+    floatingTimerRef.current = setTimeout(() => setFloatingText(null), ms)
   }
 
   const placeholder = session.status === 'active'
@@ -80,12 +85,16 @@ export function ChatPanel({
   return (
     <>
       {floatingText && (
-        <div className="speech-bubble" key={floatingText}>
+        <div
+          className="speech-bubble"
+          key={floatingText}
+          style={{ animationDuration: `${floatingDuration}s` }}
+        >
           {floatingText}
         </div>
       )}
 
-      <div className="chat-messages-layer">
+      <div className={`chat-messages-layer ${historyOpen ? 'chat-messages-layer--open' : ''}`}>
         <div className="chat-messages" ref={userListRef}>
           {messages.map((msg, i) => (
             <div
@@ -107,6 +116,13 @@ export function ChatPanel({
 
       <div className="chat-input-layer">
         <div className="chat-input-bar">
+          <button
+            onClick={() => setHistoryOpen(!historyOpen)}
+            className="chat-history-toggle"
+            aria-label="Toggle chat history"
+          >
+            {historyOpen ? '\u2715' : '\u2630'}
+          </button>
           <input
             type="text"
             value={input}

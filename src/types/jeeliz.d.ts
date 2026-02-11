@@ -44,8 +44,8 @@ interface JeelizFaceFilterAPI {
   set_inputTexture: (texture: WebGLTexture, width: number, height: number) => void
 }
 
-declare const JEEFACEFILTERAPI: JeelizFaceFilterAPI
+declare const JEELIZFACEFILTER: JeelizFaceFilterAPI
 
 interface Window {
-  JEEFACEFILTERAPI: JeelizFaceFilterAPI
+  JEELIZFACEFILTER: JeelizFaceFilterAPI
 }

@@ -34,7 +34,7 @@ describe('createJeelizAdapter', () => {
   })
 
   afterEach(() => {
-    delete (window as any).JEEFACEFILTERAPI
+    delete (window as any).JEELIZFACEFILTER
   })
 
   it('starts in off status with no gaze', () => {
@@ -45,13 +45,13 @@ describe('createJeelizAdapter', () => {
 
   it('rejects start when API is not loaded', async () => {
     const adapter = createJeelizAdapter()
-    await expect(adapter.start(mockCanvas)).rejects.toThrow('JEEFACEFILTERAPI not loaded')
+    await expect(adapter.start(mockCanvas)).rejects.toThrow('JEELIZFACEFILTER not loaded')
     expect(adapter.getStatus()).toBe('error')
   })
 
   it('transitions to requesting then active on successful init', async () => {
     const mockAPI = createMockJeelizAPI()
-    ;(window as any).JEEFACEFILTERAPI = mockAPI
+    ;(window as any).JEELIZFACEFILTER = mockAPI
 
     const adapter = createJeelizAdapter()
     const startPromise = adapter.start(mockCanvas)
@@ -66,7 +66,7 @@ describe('createJeelizAdapter', () => {
 
   it('transitions to error on init failure', async () => {
     const mockAPI = createMockJeelizAPI()
-    ;(window as any).JEEFACEFILTERAPI = mockAPI
+    ;(window as any).JEELIZFACEFILTER = mockAPI
 
     const adapter = createJeelizAdapter()
     const startPromise = adapter.start(mockCanvas)
@@ -79,7 +79,7 @@ describe('createJeelizAdapter', () => {
 
   it('maps head rotation to eye gaze', async () => {
     const mockAPI = createMockJeelizAPI()
-    ;(window as any).JEEFACEFILTERAPI = mockAPI
+    ;(window as any).JEELIZFACEFILTER = mockAPI
 
     const adapter = createJeelizAdapter()
     const startPromise = adapter.start(mockCanvas)
@@ -105,7 +105,7 @@ describe('createJeelizAdapter', () => {
 
   it('returns null gaze when face not detected', async () => {
     const mockAPI = createMockJeelizAPI()
-    ;(window as any).JEEFACEFILTERAPI = mockAPI
+    ;(window as any).JEELIZFACEFILTER = mockAPI
 
     const adapter = createJeelizAdapter()
     const startPromise = adapter.start(mockCanvas)
@@ -124,7 +124,7 @@ describe('createJeelizAdapter', () => {
 
   it('clamps gaze values to -1..1', async () => {
     const mockAPI = createMockJeelizAPI()
-    ;(window as any).JEEFACEFILTERAPI = mockAPI
+    ;(window as any).JEELIZFACEFILTER = mockAPI
 
     const adapter = createJeelizAdapter()
     const startPromise = adapter.start(mockCanvas)
@@ -148,7 +148,7 @@ describe('createJeelizAdapter', () => {
 
   it('stop resets to off and clears gaze', async () => {
     const mockAPI = createMockJeelizAPI()
-    ;(window as any).JEEFACEFILTERAPI = mockAPI
+    ;(window as any).JEELIZFACEFILTER = mockAPI
 
     const adapter = createJeelizAdapter()
     const startPromise = adapter.start(mockCanvas)

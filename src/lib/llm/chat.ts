@@ -80,6 +80,7 @@ export async function generateResponse(
   contextBlock: string,
   instructionBlock: string,
   userMessage: string,
+  history?: ChatMessage[],
 ): Promise<string | null> {
   if (config.provider === 'none') return null
 
@@ -97,6 +98,7 @@ export async function generateResponse(
 
   const messages: ChatMessage[] = [
     { role: 'system', content: system },
+    ...(history ?? []),
     { role: 'user', content: userMessage },
   ]
 

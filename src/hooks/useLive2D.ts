@@ -399,7 +399,8 @@ export function useLive2D(
         setCameraTrackingStatus('requesting')
         jeelizRef.current.start(canvas).then(
           () => setCameraTrackingStatus('active'),
-          () => {
+          (err) => {
+            console.error('[CameraTracking] Failed to start:', err)
             ctrl.cameraTrackingEnabled = false
             setCameraTrackingStatus('error')
           },

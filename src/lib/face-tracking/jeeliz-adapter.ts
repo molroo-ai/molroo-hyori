@@ -34,10 +34,10 @@ export function createJeelizAdapter(): JeelizAdapter {
   let currentGaze: CameraGaze | null = null
 
   function start(canvas: HTMLCanvasElement): Promise<void> {
-    const api = window.JEEFACEFILTERAPI
+    const api = window.JEELIZFACEFILTER
     if (!api) {
       status = 'error'
-      return Promise.reject(new Error('JEEFACEFILTERAPI not loaded'))
+      return Promise.reject(new Error('JEELIZFACEFILTER not loaded'))
     }
 
     status = 'requesting'
@@ -79,7 +79,7 @@ export function createJeelizAdapter(): JeelizAdapter {
   }
 
   function stop() {
-    const api = window.JEEFACEFILTERAPI
+    const api = window.JEELIZFACEFILTER
     if (api && status === 'active') {
       api.destroy()
     }

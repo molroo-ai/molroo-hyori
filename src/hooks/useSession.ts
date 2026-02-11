@@ -105,7 +105,11 @@ export function useSession() {
       if (llmConfig.provider !== 'none' && llmConfig.apiKey) {
         const ctx = res.prompt_data?.context?.formatted?.context_block ?? ''
         const inst = res.prompt_data?.instruction?.formatted?.instruction_block ?? ''
-        llmText = await generateResponse(llmConfig, systemPromptRef.current, ctx, inst, message)
+        const history = turnHistory.flatMap(t => [
+          { role: 'user' as const, content: t.userMessage },
+          { role: 'assistant' as const, content: t.llmResponse ?? t.response.response },
+        ])
+        llmText = await generateResponse(llmConfig, systemPromptRef.current, ctx, inst, message, history)
       }
 
       const entry: TurnEntry = {
