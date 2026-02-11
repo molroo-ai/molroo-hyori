@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { hyoriCharacter } from './characters/hyori'
+import { hyoriCharacterMd, hyoriMeta } from './characters/hyori/persona'
 import { Live2DViewer } from './components/Live2DViewer'
 import { MangaBackground } from './components/MangaBackground'
 import { ChatPanel } from './components/ChatPanel'
@@ -45,15 +46,14 @@ export default function App() {
     session, molrooApiKey, setMolrooApiKey,
     llmConfig, setLlmConfig,
     turnHistory, currentState, isProcessing,
-    createSession, resumeSession, sendMessage, reset, presets,
+    createSession, resumeSession, sendMessage, reset,
   } = useSession()
 
   // Auto-create or resume session from URL params
-  // e.g. ?provider=openai&apiKey=sk-xxx&model=gpt-4o-mini&preset=cheerful_companion
+  // e.g. ?provider=openai&apiKey=sk-xxx&model=gpt-4o-mini
   // or   ?baseUrl=https://api.example.com/v1&apiKey=xxx&model=my-model
   // or   ?sessionId=abc-123&provider=openai&apiKey=sk-xxx  (resume existing)
   useEffect(() => {
-    console.log('[AutoSession] ref:', autoSessionRef.current, 'search:', window.location.search)
     if (autoSessionRef.current) return
     const params = new URLSearchParams(window.location.search)
 
@@ -62,32 +62,27 @@ export default function App() {
       ?? (params.get('baseUrl') ? 'openai-compatible' : null)
 
     const sessionId = params.get('sessionId')
-    console.log('[AutoSession] provider:', provider, 'sessionId:', sessionId)
     if (!provider && !sessionId) return
 
     autoSessionRef.current = true
 
-    if (provider) {
-      const config: LlmConfig = {
-        provider,
-        apiKey: params.get('apiKey') ?? params.get('key') ?? '',
-        model: params.get('model') ?? undefined,
-        baseUrl: params.get('baseUrl') ?? undefined,
-      }
-      setLlmConfig(config)
-    }
+    const config: LlmConfig | null = provider ? {
+      provider,
+      apiKey: params.get('apiKey') ?? params.get('key') ?? '',
+      model: params.get('model') ?? undefined,
+      baseUrl: params.get('baseUrl') ?? undefined,
+    } : null
+
+    if (config) setLlmConfig(config)
 
     if (sessionId) {
       resumeSession(sessionId)
-    } else {
-      const presetKey = params.get('preset') ?? Object.keys(presets)[0]
-      const preset = presets[presetKey]
-      console.log('[AutoSession] preset:', presetKey, !!preset)
-      if (preset) {
-        createSession(presetKey, preset.identity)
-          .then(() => console.log('[AutoSession] created'))
-          .catch((e: unknown) => console.error('[AutoSession] failed:', e))
-      }
+    } else if (config) {
+      // Pass config directly — React state from setLlmConfig
+      // hasn't propagated yet in this tick.
+      createSession(hyoriCharacterMd, config)
+        .then(() => console.log('[AutoSession] created'))
+        .catch((e: unknown) => console.error('[AutoSession] failed:', e))
     }
 
     // Remove API key from URL immediately for security
@@ -95,7 +90,7 @@ export default function App() {
     params.delete('key')
     const clean = params.toString()
     window.history.replaceState({}, '', clean ? `?${clean}` : window.location.pathname)
-  }, [setLlmConfig, createSession, resumeSession, presets])
+  }, [setLlmConfig, createSession, resumeSession])
 
   // Update URL with sessionId when session becomes active
   useEffect(() => {
@@ -104,7 +99,6 @@ export default function App() {
     if (params.get('sessionId') === session.sessionId) return
     params.set('sessionId', session.sessionId)
     // Remove creation-only params
-    params.delete('preset')
     params.delete('apiKey')
     params.delete('key')
     window.history.replaceState({}, '', `?${params.toString()}`)
@@ -136,7 +130,7 @@ export default function App() {
           onActiveMotionChange={setActiveMotion}
         />
         <ChatPanel
-          characterName={hyoriCharacter.name}
+          characterName={hyoriMeta.name}
           session={session}
           isProcessing={isProcessing}
           onSend={sendMessage}
@@ -169,8 +163,9 @@ export default function App() {
           currentState={currentState}
           turnHistory={turnHistory}
           isProcessing={isProcessing}
-          presets={presets}
-          onCreateSession={createSession}
+          characterName={hyoriMeta.name}
+          characterMd={hyoriCharacterMd}
+          onCreateSession={() => createSession(hyoriCharacterMd)}
           onReset={reset}
         />
       </div>

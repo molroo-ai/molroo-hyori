@@ -164,64 +164,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/turn": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Process a conversation turn */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ProcessTurnRequest"];
-                };
-            };
-            responses: {
-                /** @description Turn processed */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["TurnResultResponse"];
-                    };
-                };
-                /** @description Validation error */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-                /** @description Session not found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["ErrorResponse"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/turn/appraisal": {
         parameters: {
             query?: never;
@@ -653,6 +595,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/guide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get persona creation guide with HEXACO traits, identity fields, and narrative sections */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Guide data for persona creation */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/guide/{presetKey}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get persona creation guide with preset context */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    /** @description Preset name */
+                    presetKey: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Guide data with preset context */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Preset not found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            error: {
+                                code: string;
+                                message: string;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health": {
         parameters: {
             query?: never;
@@ -720,6 +751,9 @@ export interface components {
                 priority: number;
                 mutable: boolean;
             }[];
+            character_backstory?: string;
+            behavior_rules?: string;
+            user_profile?: string;
             formatted: {
                 system_prompt: string;
             };
@@ -785,6 +819,14 @@ export interface components {
                     turnScale?: number;
                 };
             };
+            /** @description Character backstory narrative (max 4000 chars) */
+            character_backstory?: string;
+            /** @description User profile description (max 2000 chars) */
+            user_profile?: string;
+            /** @description Behavior rules and constraints (max 2000 chars) */
+            behavior_rules?: string;
+            /** @description Current scene or setting context (max 2000 chars) */
+            scene_context?: string;
         };
         /** @description HEXACO personality traits. Required when preset is not used. */
         Personality: {
@@ -878,6 +920,7 @@ export interface components {
             instruction: components["schemas"]["PromptDataInstruction"];
         };
         PromptDataContext: {
+            scene_context?: string;
             event_context: string | null;
             emotion: {
                 primary: string;
@@ -937,23 +980,14 @@ export interface components {
                 instruction_block: string;
             };
         };
-        ProcessTurnRequest: {
-            sessionId: string;
-            message?: string;
-            event?: {
-                description: string;
-                /** @enum {string} */
-                source: "user" | "system" | "internal";
-                timestamp?: number;
-            };
-            elapsedSeconds?: number;
-        };
         ProcessAppraisalRequest: {
             sessionId: string;
             appraisal: components["schemas"]["AppraisalVector"];
             /** @description What happened — passed through to prompt_data for response generation */
             context?: string;
             elapsedSeconds?: number;
+            /** @description Updated scene context — replaces stored value when provided */
+            scene_context?: string;
         };
         StateResponse: {
             emotion: components["schemas"]["VAD"];
@@ -1168,6 +1202,8 @@ export interface components {
             status: string;
             /** @example 0.1.0 */
             version: string;
+            /** @example 0.1.8 */
+            core_version: string;
             /** @example d1 */
             storage: string;
             /** @example 0 */

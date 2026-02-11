@@ -82,6 +82,59 @@ export async function generateResponse(
   return callChatCompletion(config, messages)
 }
 
+/* ── Persona generation from guide + character description ── */
+
+function parseJsonResponse(text: string): Record<string, unknown> {
+  // Strip markdown fences if present
+  const jsonStr = text.replace(/```json?\n?/g, '').replace(/```\n?/g, '').trim()
+  return JSON.parse(jsonStr)
+}
+
+/**
+ * Use LLM to transform a natural language character description into
+ * structured persona data, guided by the API's persona guide prompt.
+ * Retries once on JSON parse failure with a stricter prompt.
+ */
+export async function generatePersonaFromGuide(
+  config: LlmConfig,
+  llmPrompt: string,
+  characterDescription: string,
+): Promise<Record<string, unknown>> {
+  const model = createModel(config)
+  if (!model) throw new Error('LLM is required for persona generation')
+
+  // First attempt
+  const { text } = await generateText({
+    model,
+    system: llmPrompt,
+    messages: [{ role: 'user', content: characterDescription }],
+    temperature: 0.2,
+    maxOutputTokens: 8192,
+  })
+
+  try {
+    return parseJsonResponse(text)
+  } catch {
+    console.warn('[PersonaGen] First attempt failed, retrying with stricter prompt...')
+  }
+
+  // Retry with explicit JSON-only instruction
+  const { text: retryText } = await generateText({
+    model,
+    system: llmPrompt + '\n\nCRITICAL: Output ONLY a valid JSON object. No explanation, no markdown, no extra text. Start with { and end with }.',
+    messages: [{ role: 'user', content: characterDescription }],
+    temperature: 0.1,
+    maxOutputTokens: 8192,
+  })
+
+  try {
+    return parseJsonResponse(retryText)
+  } catch {
+    console.error('[PersonaGen] Retry also failed. Response:', retryText.slice(0, 500))
+    throw new Error('LLM returned invalid JSON for persona generation (after retry)')
+  }
+}
+
 /* ── Combined response + appraisal via tool calling ── */
 
 const DEFAULT_APPRAISAL: AppraisalVector = {

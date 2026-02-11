@@ -13,7 +13,7 @@
   border: 2.5px solid #222;
   border-radius: 26px;
   box-shadow: 3px 3px 0 #222;
-  text-align: center;
+  text-align: left;
   line-height: 1.4;
   pointer-events: none;
   animation: speechPop 3.5s ease-out forwards; /* duration overridden by inline style */
@@ -307,6 +307,21 @@
 .chat-messages::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 2px;
+}
+
+/* ── Session loading indicator ── */
+.session-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  padding: 12px 24px;
+  background: rgba(30, 30, 30, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  pointer-events: none;
 }
 
 /* ── Loading dots ── */

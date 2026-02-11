@@ -1,16 +1,14 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { createMolrooClient, DEFAULT_API_URL, DEFAULT_API_KEY } from '../lib/api/client'
-import { PERSONA_PRESETS } from '../lib/api/presets'
-import { generateWithAppraisal } from '../lib/llm/chat'
+import { generateWithAppraisal, generatePersonaFromGuide } from '../lib/llm/chat'
 import type { LlmConfig } from '../lib/llm/chat'
-import type { TurnResultResponse, StateResponse, PersonaIdentity } from '../lib/api/types'
+import type { TurnResultResponse, StateResponse, CreatePersonaRequest } from '../lib/api/types'
 
 export type { LlmConfig } from '../lib/llm/chat'
 
 export interface SessionState {
   status: 'idle' | 'creating' | 'active' | 'error'
   sessionId: string | null
-  presetName: string | null
   error: string | null
 }
 
@@ -25,7 +23,6 @@ export interface TurnEntry {
 const INITIAL_SESSION: SessionState = {
   status: 'idle',
   sessionId: null,
-  presetName: null,
   error: null,
 }
 
@@ -67,21 +64,46 @@ export function useSession() {
     [molrooApiKey],
   )
 
-  const createSession = useCallback(async (presetKey: string, identity: PersonaIdentity) => {
-    setSession({ status: 'creating', sessionId: null, presetName: presetKey, error: null })
+  /**
+   * Create a session using the guide → LLM → persona flow.
+   * 1. Fetch persona guide from API
+   * 2. LLM transforms character description into structured persona data
+   * 3. POST /v1/persona with LLM-generated data
+   *
+   * @param llmConfigOverride — pass explicitly when calling from useEffect
+   *   (React state may not yet reflect setLlmConfig from the same tick)
+   */
+  const createSession = useCallback(async (
+    characterMd: string,
+    llmConfigOverride?: LlmConfig,
+  ) => {
+    const config = llmConfigOverride ?? llmConfig
+    setSession({ status: 'creating', sessionId: null, error: null })
     try {
-      console.log('[Session] creating...', presetKey)
-      const res = await client.createSession({
-        persona: { identity },
-        preset: presetKey,
-      })
+      if (config.provider === 'none' || !config.apiKey) {
+        throw new Error('LLM provider is required for persona generation. Configure an LLM in the setup panel.')
+      }
+
+      // 1. Fetch guide
+      console.log('[Session] Fetching persona guide...')
+      const guide = await client.getPersonaGuide()
+
+      // 2. LLM generates structured persona
+      console.log('[Session] LLM generating persona from character description...')
+      const personaData = await generatePersonaFromGuide(config, guide.llm_prompt, characterMd)
+      console.log('[Session] Persona generated:', personaData)
+
+      // 3. Create session
+      const res = await client.createSession(personaData as CreatePersonaRequest)
       console.log('[Session] created:', res.sessionId)
+
       if (!res.sessionId) {
         console.error('[Session] No sessionId in response:', JSON.stringify(res))
         setSession(prev => ({ ...prev, status: 'error', error: 'No sessionId in response' }))
         return
       }
-      setSession({ status: 'active', sessionId: res.sessionId, presetName: presetKey, error: null })
+
+      setSession({ status: 'active', sessionId: res.sessionId, error: null })
       setTurnHistory([])
       setCurrentState(null)
       turnIdRef.current = 0
@@ -99,7 +121,7 @@ export function useSession() {
       const msg = err instanceof Error ? err.message : 'Failed to create session'
       setSession(prev => ({ ...prev, status: 'error', error: msg }))
     }
-  }, [client])
+  }, [client, llmConfig])
 
   // Cached prompt_data from last appraisal response (context + instruction update each turn)
   const promptDataRef = useRef<{ ctx: string; inst: string }>({ ctx: '', inst: '' })
@@ -189,14 +211,14 @@ export function useSession() {
   }, [session.sessionId, isProcessing, llmConfig, client])
 
   const resumeSession = useCallback(async (sessionId: string) => {
-    setSession({ status: 'creating', sessionId: null, presetName: null, error: null })
+    setSession({ status: 'creating', sessionId: null, error: null })
     try {
       const state = await client.getState(sessionId)
-      setSession({ status: 'active', sessionId, presetName: null, error: null })
+      setSession({ status: 'active', sessionId, error: null })
       setTurnHistory([])
       setCurrentState(state)
       turnIdRef.current = 0
-      systemPromptRef.current = ''
+      systemPromptRef.current = state.prompt_data?.system?.formatted?.system_prompt ?? ''
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Session not found'
       setSession(prev => ({ ...prev, status: 'error', error: msg }))
@@ -224,6 +246,5 @@ export function useSession() {
     resumeSession,
     sendMessage,
     reset,
-    presets: PERSONA_PRESETS,
   }
 }

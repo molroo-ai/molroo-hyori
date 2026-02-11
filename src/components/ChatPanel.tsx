@@ -83,19 +83,33 @@ export function ChatPanel({
 
   function showFloating(text: string) {
     if (floatingTimerRef.current) clearTimeout(floatingTimerRef.current)
+    // Strip wrapping quotes, then truncate for speech bubble
+    const cleaned = text.replace(/^[\u201C\u201D""]+|[\u201C\u201D""]+$/g, '')
+    const truncated = cleaned.length > 100 ? cleaned.slice(0, 100) + '...' : cleaned
     // ~50ms per char, min 2s, max 5s
-    const ms = Math.min(5000, Math.max(2000, text.length * 50))
+    const ms = Math.min(5000, Math.max(2000, cleaned.length * 50))
     setFloatingDuration(ms / 1000)
-    setFloatingText(text)
+    setFloatingText(truncated)
     floatingTimerRef.current = setTimeout(() => setFloatingText(null), ms)
   }
 
-  const placeholder = session.status === 'active'
-    ? `Talk to ${characterName}...`
-    : 'Create a session first...'
+  const notReady = session.status !== 'active'
+  const placeholder = session.status === 'creating'
+    ? 'Connecting...'
+    : session.status === 'active'
+      ? `Talk to ${characterName}...`
+      : 'Create a session first...'
 
   return (
     <>
+      {session.status === 'creating' && (
+        <div className="session-loading">
+          <span className="chat-dots">
+            <span /><span /><span />
+          </span>
+        </div>
+      )}
+
       {floatingText && (
         <div
           className="speech-bubble"
@@ -148,12 +162,12 @@ export function ChatPanel({
             onKeyDown={e => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSend()}
             placeholder={placeholder}
             className="chat-input"
-            disabled={isProcessing}
+            disabled={notReady || isProcessing}
           />
           <button
             onClick={handleSend}
             className="chat-send"
-            disabled={isProcessing || !input.trim()}
+            disabled={notReady || isProcessing || !input.trim()}
           >
             {isProcessing ? '...' : 'Send'}
           </button>

@@ -1,6 +1,5 @@
 import type { SessionState, TurnEntry, LlmConfig } from '../../hooks/useSession'
-import type { StateResponse, PersonaIdentity } from '../../lib/api/types'
-import type { PresetEntry } from '../../lib/api/presets'
+import type { StateResponse } from '../../lib/api/types'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs'
 import { Button } from '../ui/button'
 import { Badge } from '../ui/badge'
@@ -18,8 +17,9 @@ interface DevPanelProps {
   currentState: StateResponse | null
   turnHistory: TurnEntry[]
   isProcessing: boolean
-  presets: Record<string, PresetEntry>
-  onCreateSession: (preset: string, identity: PersonaIdentity) => void
+  characterName: string
+  characterMd: string
+  onCreateSession: () => void
   onReset: () => void
 }
 
@@ -27,7 +27,8 @@ export function DevPanel({
   session, molrooApiKey, onMolrooApiKeyChange,
   llmConfig, onLlmConfigChange,
   currentState, turnHistory, isProcessing,
-  presets, onCreateSession, onReset,
+  characterName, characterMd,
+  onCreateSession, onReset,
 }: DevPanelProps) {
   const latestTurn = turnHistory[turnHistory.length - 1] ?? null
 
@@ -57,12 +58,13 @@ export function DevPanel({
           <TabsContent value="setup">
             <SetupTab
               session={session}
-              presets={presets}
               isProcessing={isProcessing}
               molrooApiKey={molrooApiKey}
               onMolrooApiKeyChange={onMolrooApiKeyChange}
               llmConfig={llmConfig}
               onLlmConfigChange={onLlmConfigChange}
+              characterName={characterName}
+              characterMd={characterMd}
               onCreateSession={onCreateSession}
             />
           </TabsContent>

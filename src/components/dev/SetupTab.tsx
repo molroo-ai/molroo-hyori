@@ -1,7 +1,4 @@
-import { useState, useEffect } from 'react'
 import type { SessionState, LlmConfig } from '../../hooks/useSession'
-import type { PersonaIdentity } from '../../lib/api/types'
-import type { PresetEntry } from '../../lib/api/presets'
 import { LLM_PROVIDERS, getProvider } from '../../lib/llm/providers'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
@@ -9,47 +6,26 @@ import { Label } from '../ui/label'
 
 interface SetupTabProps {
   session: SessionState
-  presets: Record<string, PresetEntry>
   isProcessing: boolean
   molrooApiKey: string
   onMolrooApiKeyChange: (key: string) => void
   llmConfig: LlmConfig
   onLlmConfigChange: (config: LlmConfig) => void
-  onCreateSession: (preset: string, identity: PersonaIdentity) => void
-}
-
-const EMPTY_IDENTITY: PersonaIdentity = {
-  name: '', role: '', core_values: [], speaking_style: '',
+  characterName: string
+  characterMd: string
+  onCreateSession: () => void
 }
 
 export function SetupTab({
-  session, presets, isProcessing,
+  session, isProcessing,
   molrooApiKey, onMolrooApiKeyChange,
-  llmConfig, onLlmConfigChange, onCreateSession,
+  llmConfig, onLlmConfigChange,
+  characterName, characterMd,
+  onCreateSession,
 }: SetupTabProps) {
-  const presetKeys = Object.keys(presets)
-  const [selectedPreset, setSelectedPreset] = useState(presetKeys[0] ?? '')
-  const [identity, setIdentity] = useState<PersonaIdentity>(EMPTY_IDENTITY)
-  const [coreValuesText, setCoreValuesText] = useState('')
-
-  useEffect(() => {
-    const preset = presets[selectedPreset]
-    if (preset) {
-      setIdentity(preset.identity)
-      setCoreValuesText(preset.identity.core_values.join(', '))
-    }
-  }, [selectedPreset])
-
   const isActive = session.status === 'active'
   const isCreating = session.status === 'creating'
   const prov = getProvider(llmConfig.provider)
-
-  function handleCreate() {
-    onCreateSession(selectedPreset, {
-      ...identity,
-      core_values: coreValuesText.split(',').map(s => s.trim()).filter(Boolean),
-    })
-  }
 
   return (
     <div className="space-y-5">
@@ -103,33 +79,25 @@ export function SetupTab({
         )}
       </Section>
 
-      <Section title="Persona">
-        <Field label="Preset">
-          <NativeSelect value={selectedPreset} onChange={setSelectedPreset} disabled={isActive}>
-            {presetKeys.map(k => <option key={k} value={k}>{presets[k].name}</option>)}
-          </NativeSelect>
-        </Field>
-        {presets[selectedPreset] && (
-          <p className="text-xs text-muted-foreground -mt-1">{presets[selectedPreset].description}</p>
-        )}
-        <Field label="Name">
-          <Input value={identity.name} onChange={e => setIdentity(p => ({ ...p, name: e.target.value }))} disabled={isActive} />
-        </Field>
-        <Field label="Role">
-          <Input value={identity.role ?? ''} onChange={e => setIdentity(p => ({ ...p, role: e.target.value }))} disabled={isActive} />
-        </Field>
-        <Field label="Core Values">
-          <Input value={coreValuesText} onChange={e => setCoreValuesText(e.target.value)} placeholder="comma-separated" disabled={isActive} />
-        </Field>
-        <Field label="Speaking Style">
-          <textarea className="flex min-h-[40px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-y"
-            value={identity.speaking_style} onChange={e => setIdentity(p => ({ ...p, speaking_style: e.target.value }))}
-            rows={2} disabled={isActive} />
-        </Field>
+      <Section title="Character">
+        <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base font-semibold text-white">{characterName}</span>
+          </div>
+          <details className="text-xs">
+            <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Character Description</summary>
+            <pre className="mt-1 text-muted-foreground whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto text-[11px]">
+              {characterMd.slice(0, 1000)}{characterMd.length > 1000 ? '...' : ''}
+            </pre>
+          </details>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Session creation: API guide + LLM generates structured persona from this description.
+        </p>
       </Section>
 
       {!isActive && (
-        <Button className="w-full" onClick={handleCreate} disabled={isCreating || !identity.name.trim()}>
+        <Button className="w-full" onClick={onCreateSession} disabled={isCreating}>
           {isCreating ? 'Creating...' : 'Create Session'}
         </Button>
       )}

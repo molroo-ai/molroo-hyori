@@ -16,6 +16,14 @@ export function createMolrooClient(baseUrl: string, apiKey: string) {
   })
 
   return {
+    async getPersonaGuide() {
+      const res = await fetch(`${baseUrl}/v1/guide`, {
+        headers: { 'Authorization': `Bearer ${apiKey}` },
+      })
+      if (!res.ok) throw new Error('Failed to fetch persona guide')
+      return res.json() as Promise<{ llm_prompt: string; [key: string]: unknown }>
+    },
+
     async createSession(body: Schemas['CreatePersonaRequest']) {
       const { data, error } = await client.POST('/v1/persona', { body })
       if (error) throw new Error((error as Schemas['ErrorResponse']).error.message)
