@@ -40,6 +40,9 @@ jobs:
       - run: npm run build
         env:
           VITE_MOLROO_API_KEY: ${{ secrets.VITE_MOLROO_API_KEY }}
+          VITE_LLM_PROVIDER: google-generative-ai
+          VITE_LLM_API_KEY: ${{ secrets.VITE_LLM_API_KEY }}
+          VITE_LLM_MODEL: gemini-2.0-flash
 
       - uses: actions/upload-pages-artifact@v3
         with:

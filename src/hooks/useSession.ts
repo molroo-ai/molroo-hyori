@@ -29,15 +29,24 @@ const INITIAL_SESSION: SessionState = {
 
 const LS_KEY = 'molroo-llm-config'
 
+const DEFAULT_LLM_PROVIDER = import.meta.env.VITE_LLM_PROVIDER ?? 'none'
+const DEFAULT_LLM_API_KEY = import.meta.env.VITE_LLM_API_KEY ?? ''
+const DEFAULT_LLM_MODEL = import.meta.env.VITE_LLM_MODEL ?? ''
+
 function loadLlmConfig(): LlmConfig {
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (raw) {
       const saved = JSON.parse(raw) as Partial<LlmConfig>
-      return { provider: saved.provider ?? 'none', apiKey: '', model: saved.model, baseUrl: saved.baseUrl }
+      return {
+        provider: saved.provider ?? DEFAULT_LLM_PROVIDER,
+        apiKey: DEFAULT_LLM_API_KEY,
+        model: saved.model ?? DEFAULT_LLM_MODEL,
+        baseUrl: saved.baseUrl,
+      }
     }
   } catch { /* ignore */ }
-  return { provider: 'none', apiKey: '' }
+  return { provider: DEFAULT_LLM_PROVIDER, apiKey: DEFAULT_LLM_API_KEY, model: DEFAULT_LLM_MODEL }
 }
 
 function saveLlmConfig(config: LlmConfig) {
