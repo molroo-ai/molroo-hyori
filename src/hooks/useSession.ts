@@ -120,7 +120,7 @@ export function useSession() {
   const sendMessage = useCallback(async (message: string): Promise<{
     turnResponse: TurnResultResponse
     displayText: string
-  } | null> => {
+  } | { error: string } | null> => {
     if (session.status !== 'active' || !session.sessionId || isProcessing) return null
     setIsProcessing(true)
     try {
@@ -195,7 +195,7 @@ export function useSession() {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to process turn'
       setSession(prev => ({ ...prev, error: msg }))
-      return null
+      return { error: msg }
     } finally {
       setIsProcessing(false)
     }

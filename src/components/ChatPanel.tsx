@@ -84,7 +84,12 @@ export function ChatPanel({
     }
 
     const result = await onSend(userMsg)
-    if (result) {
+    if (result && 'error' in result) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        text: `Error: ${result.error}`,
+      }])
+    } else if (result) {
       setMessages(prev => [...prev, { role: 'assistant', text: result.displayText }])
       showFloating(result.displayText)
       onTurnResponse(result.turnResponse)
