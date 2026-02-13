@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+.env
+.env.*
+!.env.example
+
+# Live2D model files — not redistributable (Live2D sample model terms)
+public/models/
+
+# Internal dev files — not for public repo
+CLAUDE.md
+PLAN.md
+docs/internal/

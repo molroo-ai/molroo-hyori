@@ -1,0 +1,199 @@
+import { useState, useEffect, useRef } from 'react'
+import { hyoriCharacter } from './characters/hyori'
+import { hyoriCharacterMd, hyoriMeta } from './characters/hyori/persona'
+import { Live2DViewer } from './components/Live2DViewer'
+import { MangaBackground } from './components/MangaBackground'
+import { ChatPanel } from './components/ChatPanel'
+import { GuideOverlay } from './components/GuideOverlay'
+import { DevPanel } from './components/dev/DevPanel'
+import { useSession } from './hooks/useSession'
+import { applyEmotionToLive2D } from './lib/live2d/emotion-controller'
+import { getProvider } from './lib/llm/providers'
+import type { Live2DController, ActiveMotion } from './hooks/useLive2D'
+import type { LlmConfig } from './hooks/useSession'
+import type { TurnResultResponse } from './lib/api/types'
+import './App.css'
+
+function isLlmReady(config: LlmConfig): boolean {
+  if (config.provider === 'none') return false
+  const prov = getProvider(config.provider)
+  if (!prov) return false
+  if (prov.apiKeyRequired && !config.apiKey) return false
+  return true
+}
+
+const EMOTION_SYMBOLS: Record<string, string> = {
+  joy: '♪',
+  contentment: '~',
+  trust: '♡',
+  calm: '―',
+  surprise: '?!',
+  excitement: '☆',
+  anger: '#',
+  disgust: ';;;',
+  fear: '!!',
+  anxiety: '...?',
+  sadness: 'ㅠ',
+  guilt: '...',
+  numbness: '. . .',
+  shame: '///',
+}
+
+/** Any emotion change gets a symbol; unknown emotions default to '!' */
+function emotionToSymbol(emotion: string): string {
+  return EMOTION_SYMBOLS[emotion] ?? '!'
+}
+
+export default function App() {
+  const [controller, setController] = useState<Live2DController | null>(null)
+  const [activeMotion, setActiveMotion] = useState<ActiveMotion | null>(null)
+  const [devOpen, setDevOpen] = useState(false)
+  const [emotionReaction, setEmotionReaction] = useState<string | null>(null)
+  const [guideVisible, setGuideVisible] = useState(true)
+  const autoSessionRef = useRef(false)
+  const prevEmotionRef = useRef<string | null>(null)
+
+  const {
+    session, molrooApiKey, setMolrooApiKey,
+    llmConfig, setLlmConfig,
+    turnHistory, currentState, isProcessing,
+    createSession, resumeSession, sendMessage, reset,
+  } = useSession()
+
+  // Auto-create or resume session from URL params
+  // e.g. ?provider=openai&apiKey=sk-xxx&model=gpt-4o-mini
+  // or   ?baseUrl=https://api.example.com/v1&apiKey=xxx&model=my-model
+  // or   ?sessionId=abc-123&provider=openai&apiKey=sk-xxx  (resume existing)
+  useEffect(() => {
+    if (autoSessionRef.current) return
+    const params = new URLSearchParams(window.location.search)
+
+    // LLM config from params
+    const provider = params.get('provider')
+      ?? (params.get('baseUrl') ? 'openai-compatible' : null)
+
+    const sessionId = params.get('sessionId')
+    if (!provider && !sessionId) return
+
+    autoSessionRef.current = true
+
+    const config: LlmConfig | null = provider ? {
+      provider,
+      apiKey: params.get('apiKey') ?? params.get('key') ?? '',
+      model: params.get('model') ?? undefined,
+      baseUrl: params.get('baseUrl') ?? undefined,
+    } : null
+
+    if (config) setLlmConfig(config)
+
+    if (sessionId) {
+      resumeSession(sessionId)
+    } else if (config) {
+      createSession()
+        .then(() => console.log('[AutoSession] created'))
+        .catch((e: unknown) => console.error('[AutoSession] failed:', e))
+    }
+
+    // Remove API key from URL immediately for security
+    params.delete('apiKey')
+    params.delete('key')
+    const clean = params.toString()
+    window.history.replaceState({}, '', clean ? `?${clean}` : window.location.pathname)
+  }, [setLlmConfig, createSession, resumeSession])
+
+  // Update URL with sessionId when session becomes active
+  useEffect(() => {
+    if (session.status !== 'active' || !session.sessionId) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('sessionId') === session.sessionId) return
+    params.set('sessionId', session.sessionId)
+    // Remove creation-only params
+    params.delete('apiKey')
+    params.delete('key')
+    window.history.replaceState({}, '', `?${params.toString()}`)
+  }, [session.status, session.sessionId])
+
+  const llmReady = isLlmReady(llmConfig)
+
+  // Auto-open settings panel when user needs to take action:
+  // 1. Session idle + guide already dismissed → user needs to set up & create session
+  // 2. Session active + LLM not configured → user needs to set up LLM to chat
+  useEffect(() => {
+    if (session.status === 'idle' && !guideVisible) {
+      setDevOpen(true)
+    } else if (session.status === 'active' && !isLlmReady(llmConfig)) {
+      setDevOpen(true)
+    }
+  }, [session.status, llmConfig, guideVisible])
+
+  function handleTurnResponse(res: TurnResultResponse) {
+    if (!controller) return
+    applyEmotionToLive2D(controller, res)
+
+    // Show reaction bubble on emotion change
+    const newEmotion = res.discrete_emotion.primary
+    if (prevEmotionRef.current && prevEmotionRef.current !== newEmotion) {
+      setEmotionReaction(emotionToSymbol(newEmotion))
+    }
+    prevEmotionRef.current = newEmotion
+  }
+
+  return (
+    <div className="app-layout">
+      {guideVisible && <GuideOverlay onDone={() => setGuideVisible(false)} />}
+
+      {/* Main column: Live2D + Chat */}
+      <div className="main-column">
+        <MangaBackground />
+        <Live2DViewer
+          character={hyoriCharacter}
+          onReady={(ctrl) => {
+            setController(ctrl)
+            ctrl.setCameraTracking(true)
+          }}
+          onActiveMotionChange={setActiveMotion}
+        />
+        <ChatPanel
+          characterName={hyoriMeta.name}
+          session={session}
+          isProcessing={isProcessing}
+          llmReady={llmReady}
+          onSend={sendMessage}
+          onTurnResponse={handleTurnResponse}
+          emotionReaction={emotionReaction}
+          onEmotionReactionDone={() => setEmotionReaction(null)}
+        />
+        <div className="attribution">
+          Powered by Live2D
+        </div>
+
+        {/* Toggle for DevPanel */}
+        <button
+          className="dev-toggle"
+          onClick={() => setDevOpen(!devOpen)}
+          aria-label="Toggle developer panel"
+        >
+          {devOpen ? '\u2715' : '</>'}
+        </button>
+      </div>
+
+      {/* Developer panel */}
+      <div className={`dev-column ${devOpen ? '' : 'dev-column--hidden'}`}>
+        <DevPanel
+          session={session}
+          molrooApiKey={molrooApiKey}
+          onMolrooApiKeyChange={setMolrooApiKey}
+          llmConfig={llmConfig}
+          onLlmConfigChange={setLlmConfig}
+          currentState={currentState}
+          turnHistory={turnHistory}
+          isProcessing={isProcessing}
+          characterName={hyoriMeta.name}
+          characterMd={hyoriCharacterMd}
+          onCreateSession={() => createSession()}
+          onReset={reset}
+        />
+      </div>
+    </div>
+  )
+}
