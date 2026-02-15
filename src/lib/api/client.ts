@@ -11,29 +11,68 @@ export function createMolrooClient(baseUrl: string, apiKey: string) {
     baseUrl,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      'X-API-Key': apiKey,
     },
   })
 
   return {
     async getPersonaGuide() {
       const res = await fetch(`${baseUrl}/v1/guide`, {
-        headers: { 'Authorization': `Bearer ${apiKey}` },
+        headers: { 'X-API-Key': apiKey },
       })
       if (!res.ok) throw new Error('Failed to fetch persona guide')
       return res.json() as Promise<{ llm_prompt: string; [key: string]: unknown }>
     },
 
+    // Legacy endpoint - will be replaced with Thin Client flow
     async createSession(body: Schemas['CreatePersonaRequest']) {
       const { data, error } = await client.POST('/v1/persona', { body })
       if (error) throw new Error((error as Schemas['ErrorResponse']).error.message)
       return data
     },
 
+    // Legacy endpoint
     async processAppraisal(body: Schemas['ProcessAppraisalRequest']) {
       const { data, error } = await client.POST('/v1/turn/appraisal', { body })
       if (error) throw new Error((error as Schemas['ErrorResponse']).error.message)
       return data
+    },
+
+    // New Thin Client endpoints
+    async prepareChat(worldId: string, personaId: string, message: string) {
+      const res = await fetch(`${baseUrl}/v1/prompt/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({ worldId, personaId, message }),
+      })
+      if (!res.ok) throw new Error('Failed to prepare chat')
+      return res.json() as Promise<{
+        prompt: { system: string; context: string; instruction: string }
+        schema: object
+        sessionId: string
+        metadata: { personaId: string; turnNumber: number }
+      }>
+    },
+
+    async completeChat(sessionId: string, personaId: string, text: string, appraisal: any) {
+      const res = await fetch(`${baseUrl}/v1/prompt/chat/complete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({ sessionId, personaId, text, appraisal }),
+      })
+      if (!res.ok) throw new Error('Failed to complete chat')
+      return res.json() as Promise<{
+        emotion: any
+        text: string
+        reflectionRequired: boolean
+        reflectionPrompt?: { system: string; user: string }
+      }>
     },
 
     async getState(sessionId: string) {
