@@ -59,6 +59,24 @@ npm run dev
 
 > **Note:** The Live2D model file is not included in the repo. Download [Hiyori (hiyori_pro_zh)](https://www.live2d.com/en/learn/sample/) from Live2D's official sample page and place it at `public/models/hiyori_pro_zh.zip`.
 
+Requires molroo persona API running locally (`cd molroo-ai/api/persona && npx wrangler dev`).
+
+## URL Parameters
+
+Auto-create a session with LLM config via URL parameters:
+
+```
+http://localhost:5173/?provider=<provider>&model=<model>&apiKey=<key>
+```
+
+| Param | Description | Example |
+|-------|-------------|---------|
+| `provider` | LLM provider | `openrouter`, `openai`, `anthropic`, `google-generative-ai` |
+| `model` | Model identifier | `openai/gpt-4o-mini`, `claude-sonnet-4-20250514` |
+| `apiKey` | Provider API key (removed from URL on load) | |
+| `baseUrl` | Custom endpoint (auto-sets `openai-compatible`) | |
+| `personaId` | Resume existing session | |
+
 ## Third-Party Notices
 
 This project uses Live2D Cubism SDK and sample data. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) for full license details.

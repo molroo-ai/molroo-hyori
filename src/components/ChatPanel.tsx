@@ -73,7 +73,6 @@ export function ChatPanel({
     const userMsg = input.trim()
     setMessages(prev => [...prev, { role: 'user', text: userMsg }])
     setInput('')
-    if (!historyOpen) setHistoryOpen(true)
 
     if (session.status !== 'active') {
       setMessages(prev => [...prev, {
