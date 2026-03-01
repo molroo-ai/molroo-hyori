@@ -27,7 +27,7 @@ const INITIAL_SESSION: SessionState = {
   error: null,
 }
 
-const DEFAULT_API_URL = import.meta.env.VITE_MOLROO_API_URL ?? 'http://localhost:8787'
+const DEFAULT_API_URL = import.meta.env.VITE_MOLROO_API_URL ?? 'https://api.molroo.io'
 const DEFAULT_API_KEY = import.meta.env.VITE_MOLROO_API_KEY ?? 'mk_live_fb3db843e38c15ec530b0b95337608b7'
 
 const LS_KEY = 'molroo-llm-config'
