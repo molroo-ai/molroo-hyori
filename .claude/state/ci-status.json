@@ -1,0 +1,6 @@
+{
+  "timestamp": "2026-03-02T02:38:01Z",
+  "trigger_command": "git add index.html src/main.tsx vite.config.ts && git commit -m \"$(cat <<'EOF'\\nfix: add process polyfill in HTML head for Node.js deps\\n\\n@ai-sdk/google-vertex (optional SDK peer dep) pulls in\\ngoogle-auth-library which references process.* at module init.\\nInline polyfill in <head> runs before any JS bundle.\\n\\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\\nEOF\\n)\" && git push origin main 2>&1",
+  "status": "completed",
+  "conclusion": "success"
+}

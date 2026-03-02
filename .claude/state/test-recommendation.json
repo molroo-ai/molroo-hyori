@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-03-02T02:41:27Z",
+  "changed_file": "/Users/yijiro/workspace/molroo-workspace/molroo-io/sdk/src/llm/vercel-ai/adapter.ts",
+  "test_command": "npm test",
+  "related_test": "",
+  "recommendation": "テストの実行を推奨します"
+}

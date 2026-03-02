@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "timestamp": "2026-03-01T14:43:00.720Z",
+  "sessionId": "",
+  "wipTasks": [],
+  "recentEdits": [
+    ".env.example",
+    ".github/workflows/deploy.yml",
+    ".npmrc",
+    "README.md",
+    "package-lock.json",
+    "package.json",
+    "src/App.tsx",
+    "src/characters/hyori/index.ts",
+    "src/characters/hyori/persona.ts",
+    "src/components/dev/DevPanel.tsx",
+    "src/components/dev/SetupTab.tsx",
+    "src/hooks/useSession.ts",
+    "src/lib/api/types.ts",
+    "src/lib/live2d/emotion-controller.ts",
+    "src/lib/llm/adapter.ts",
+    "src/lib/llm/providers.ts",
+    "vite.config.ts"
+  ],
+  "metrics": null
+}

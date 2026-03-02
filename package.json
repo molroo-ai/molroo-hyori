@@ -14,7 +14,7 @@
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.41",
     "@ai-sdk/openai": "^3.0.26",
-    "@molroo-io/sdk": "^0.4.0",
+    "@molroo-io/sdk": "^0.4.1",
     "@tailwindcss/vite": "^4.1.18",
     "ai": "^6.0.79",
     "class-variance-authority": "^0.7.1",

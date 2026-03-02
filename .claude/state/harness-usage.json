@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "updatedAt": "2026-03-01T14:51:31.461Z",
+  "skills": {
+    "agent-browser": {
+      "count": 1,
+      "lastUsed": "2026-03-01T14:51:31.461Z"
+    }
+  },
+  "commands": {},
+  "agents": {},
+  "hooks": {}
+}
