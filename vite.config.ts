@@ -39,9 +39,6 @@ export default defineConfig({
     },
     dedupe: ['@molroo-io/sdk'],
   },
-  define: {
-    'process.env': {},
-  },
   build: {
     commonjsOptions: {
       include: [/molroo-io/, /node_modules/],
