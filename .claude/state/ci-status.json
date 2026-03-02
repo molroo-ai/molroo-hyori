@@ -1,6 +1,6 @@
 {
-  "timestamp": "2026-03-02T02:38:01Z",
-  "trigger_command": "git add index.html src/main.tsx vite.config.ts && git commit -m \"$(cat <<'EOF'\\nfix: add process polyfill in HTML head for Node.js deps\\n\\n@ai-sdk/google-vertex (optional SDK peer dep) pulls in\\ngoogle-auth-library which references process.* at module init.\\nInline polyfill in <head> runs before any JS bundle.\\n\\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\\nEOF\\n)\" && git push origin main 2>&1",
+  "timestamp": "2026-03-02T02:44:34Z",
+  "trigger_command": "cd /Users/yijiro/workspace/molroo-workspace/demos/hyori && git add -A && git commit -m \"$(cat <<'EOF'\\nfix: upgrade SDK to 0.4.1 with dynamic provider imports\\n\\nEliminates google-vertex/google-auth-library from bundle.\\nBundle size reduced ~400KB. Process polyfill in index.html\\ncovers remaining React dev mode references.\\n\\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\\nEOF\\n)\" && git push origin main 2>&1",
   "status": "completed",
   "conclusion": "success"
 }
